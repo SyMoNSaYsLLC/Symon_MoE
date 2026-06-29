@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "gguf_parser",
+    "ollama_client",
+    "m3u_parser",
+]
+resolver = "2"
