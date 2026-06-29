@@ -18,7 +18,7 @@ def init_db(path: str | Path) -> DbWorker:
 
 def get_db() -> DbWorker:
     if _DB is None:
-        raise RuntimeError("DB not initialised. Call init_db first.")
+        raise RuntimeError("DB not initialized. Call init_db first.")
     return _DB
 
 

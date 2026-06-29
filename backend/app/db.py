@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import aiosqlite
+
+DB_TIMEOUT_SECONDS = float(os.getenv("DB_TIMEOUT_SECONDS", "60"))
 
 
 class DbWorker:
@@ -104,7 +107,7 @@ class DbWorker:
         if not self._loop:
             raise RuntimeError("DbWorker loop not started")
         future = asyncio.run_coroutine_threadsafe(coro, self._loop)
-        return future.result(timeout=30)
+        return future.result(timeout=DB_TIMEOUT_SECONDS)
 
     def _now(self) -> str:
         return datetime.now(UTC).isoformat()

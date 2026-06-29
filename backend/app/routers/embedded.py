@@ -63,8 +63,11 @@ def download_artifact(name: str):
     if not SAFE_NAME_PATTERN.fullmatch(name) or name in {".", ".."}:
         raise HTTPException(status_code=400, detail="Invalid artifact name")
 
-    path = (ARTIFACT_DIR / name).resolve()
-    artifact_root = ARTIFACT_DIR.resolve()
-    if artifact_root not in path.parents or not path.exists() or not path.is_file():
+    artifact_path = None
+    for entry in ARTIFACT_DIR.iterdir() if ARTIFACT_DIR.exists() else []:
+        if entry.is_file() and entry.name == name:
+            artifact_path = entry.resolve()
+            break
+    if artifact_path is None:
         raise HTTPException(status_code=404, detail="Artifact not found")
-    return FileResponse(path=str(path), filename=name)
+    return FileResponse(path=str(artifact_path), filename=name)

@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -87,6 +88,7 @@ class PoolWorker(threading.Thread):
                 if not throttle_check():
                     self.last_task = "throttled"
                     self.manager._append_log(self.current_job or "", "Worker throttled due to hardware limits.")
+                    time.sleep(1.0)
                     self._queue.put(item)
                     continue
                 self.process_item(item)
