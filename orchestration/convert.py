@@ -31,6 +31,7 @@ import sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LLM_ENGINE = os.path.join(REPO_ROOT, "converters", "llm_engine", "convert_hf_to_gguf.py")
 DIFF_ENGINE = os.path.join(REPO_ROOT, "converters", "diff_engine", "tools", "convert.py")
+DIFF_HELPER = os.path.join(REPO_ROOT, "helpers", "python", "diffusion_convert.py")
 
 # Architectures that belong to the diffusion engine.
 DIFFUSION_ARCH_KEYWORDS = {"Flux", "SD3", "SDXL", "StableDiffusion", "Unet", "UNet"}
@@ -84,13 +85,27 @@ def convert_diffusion(model_dir: str, src: str | None, outfile: str) -> int:
         return 1
     if not os.path.isabs(src):
         src = os.path.join(model_dir, src)
-    cmd = [
-        sys.executable,
-        DIFF_ENGINE,
-        "--src", src,
-        "--dst", outfile,
-    ]
-    print(f"[Diffusion engine] {' '.join(cmd)}")
+
+    # Prefer helpers/python/diffusion_convert.py (wraps stable-diffusion.cpp CLI)
+    # if the GGUF-direct conversion is desired; fall back to diff_engine otherwise.
+    if os.path.isfile(DIFF_HELPER):
+        cmd = [
+            sys.executable,
+            DIFF_HELPER,
+            "convert",
+            src,
+            outfile,
+        ]
+        print(f"[Diffusion helper] {' '.join(cmd)}")
+    else:
+        cmd = [
+            sys.executable,
+            DIFF_ENGINE,
+            "--src", src,
+            "--dst", outfile,
+        ]
+        print(f"[Diffusion engine] {' '.join(cmd)}")
+
     result = subprocess.run(cmd)
     return result.returncode
 
