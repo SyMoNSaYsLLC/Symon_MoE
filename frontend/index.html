@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Symoneural Platform</title>
     <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/apps.css" />
   </head>
   <body>
     <header class="topbar">
@@ -12,7 +13,33 @@
       <p>Machine-learning and neural-networking model operations</p>
     </header>
 
-    <main class="layout">
+    <div class="root-layout">
+      <!-- Sidebar navigation -->
+      <nav class="sidebar-nav">
+        <a class="nav-item nav-item--active" href="index.html">
+          <span class="nav-icon">🏠</span> Model Manager
+        </a>
+        <a class="nav-item" href="apps/chatbot.html">
+          <span class="nav-icon">💬</span> Chatbot
+        </a>
+        <a class="nav-item" href="apps/code_assist.html">
+          <span class="nav-icon">💻</span> Code Assistant
+        </a>
+        <a class="nav-item" href="apps/calculator.html">
+          <span class="nav-icon">∫</span> Calculator
+        </a>
+        <a class="nav-item" href="apps/text_to_image.html">
+          <span class="nav-icon">🖼</span> Text to Image
+        </a>
+        <a class="nav-item" href="apps/text_to_video.html">
+          <span class="nav-icon">🎬</span> Text to Video
+        </a>
+        <a class="nav-item" href="apps/iptv.html">
+          <span class="nav-icon">📺</span> IPTV
+        </a>
+      </nav>
+
+      <main class="layout">
       <section class="panel onboarding">
         <h2>Model Onboarding</h2>
         <p>
@@ -89,6 +116,7 @@ metadata.json
         <div id="models"></div>
       </section>
     </main>
+    </div>
 
     <script src="js/app.js"></script>
   </body>

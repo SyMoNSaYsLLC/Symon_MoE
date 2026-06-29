@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chatbot — Symoneural</title>
+    <link rel="stylesheet" href="../css/styles.css" />
+    <link rel="stylesheet" href="../css/apps.css" />
+    <!-- marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <h1><a href="../index.html" class="home-link">Symoneural</a> › Chatbot</h1>
+    </header>
+
+    <div class="app-layout app-layout--chat">
+      <aside class="app-sidebar">
+        <h3>Settings</h3>
+        <label>Model
+          <select id="modelSelect"><option value="">Loading…</option></select>
+        </label>
+        <label>Temperature
+          <input id="tempSlider" type="range" min="0" max="2" step="0.05" value="0.8" />
+          <span id="tempVal">0.8</span>
+        </label>
+        <label>System prompt
+          <textarea id="systemPrompt" rows="5" placeholder="You are a helpful assistant."></textarea>
+        </label>
+        <button id="clearBtn">Clear chat</button>
+      </aside>
+
+      <main class="app-main chat-main">
+        <div id="chatMessages" class="chat-messages"></div>
+
+        <form id="chatForm" class="chat-input-row">
+          <textarea id="chatInput" rows="3" placeholder="Type a message…"></textarea>
+          <button type="submit" id="sendBtn">Send</button>
+        </form>
+      </main>
+    </div>
+
+    <script src="../js/apps/chatbot.js"></script>
+  </body>
+</html>

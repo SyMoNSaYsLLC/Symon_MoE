@@ -10,3 +10,19 @@
 [submodule "interfaces/llama_cpp_server"]
 	path = interfaces/llama_cpp_server
 	url = https://github.com/ggml-org/llama.cpp.git
+[submodule "converters/stable_diffusion"]
+	path = converters/stable_diffusion
+	url = https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
+	branch = dev
+[submodule "converters/diffusers_cpp"]
+	path = converters/diffusers_cpp
+	url = https://github.com/leejet/stable-diffusion.cpp.git
+[submodule "converters/ollama"]
+	path = converters/ollama
+	url = https://github.com/ollama/ollama.git
+[submodule "interfaces/comfyui"]
+	path = interfaces/comfyui
+	url = https://github.com/comfyanonymous/ComfyUI.git
+[submodule "interfaces/open_webui"]
+	path = interfaces/open_webui
+	url = https://github.com/open-webui/open-webui.git
