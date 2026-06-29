@@ -3,10 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class ConversionJobRequest(BaseModel):
+class APIModel(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+
+class ConversionJobRequest(APIModel):
     model_name: str = Field(..., description="Folder name under models/raw")
     architecture: Literal["llama", "qwen2", "mistral", "diffusion"]
     outtype: str = "q8_0"
@@ -14,17 +18,17 @@ class ConversionJobRequest(BaseModel):
     source_file: str | None = None
 
 
-class MigrationSource(BaseModel):
+class MigrationSource(APIModel):
     architecture: Literal["llama", "qwen2", "mistral"]
     artifact_name: str
 
 
-class MigrationJobRequest(BaseModel):
+class MigrationJobRequest(APIModel):
     sources: list[MigrationSource] = Field(..., min_length=3, max_length=3)
     target_name: str = "symoneural-migrated.gguf"
 
 
-class JobRecord(BaseModel):
+class JobRecord(APIModel):
     id: str
     job_type: Literal["conversion", "migration"]
     status: Literal["queued", "running", "completed", "failed"]
