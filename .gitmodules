@@ -1,0 +1,6 @@
+[submodule "converters/llm_engine"]
+	path = converters/llm_engine
+	url = https://github.com/ggml-org/llama.cpp.git
+[submodule "converters/diff_engine"]
+	path = converters/diff_engine
+	url = https://github.com/city96/ComfyUI-GGUF.git
