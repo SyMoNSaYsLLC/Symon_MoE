@@ -26,6 +26,35 @@ SUPPORTED_MIGRATION_COMBINATIONS = (
     ("llama", "qwen2", "mistral"),
 )
 
+# ---------------------------------------------------------------------------
+# SQLite database
+# ---------------------------------------------------------------------------
+DB_PATH = Path(os.getenv("SYMON_DB_PATH", str(MODELS_ROOT / "symoneural.db"))).resolve()
+
+# ---------------------------------------------------------------------------
+# Mining feature flag
+# ---------------------------------------------------------------------------
+MINING_ENABLED: bool = os.getenv("SYMON_MINING_ENABLED", "false").lower() in ("1", "true", "yes")
+
+# ---------------------------------------------------------------------------
+# Embedded / Yocto build workspace
+# ---------------------------------------------------------------------------
+DEFAULT_EMBEDDED_BUILD_ROOT = REPO_ROOT / "embedded_builds"
+EMBEDDED_BUILD_ROOT = Path(
+    os.getenv("SYMON_EMBEDDED_BUILD_ROOT", str(DEFAULT_EMBEDDED_BUILD_ROOT))
+).resolve()
+
+# ---------------------------------------------------------------------------
+# Web terminal
+# ---------------------------------------------------------------------------
+TERMINAL_SHELL: str = os.getenv("SYMON_TERMINAL_SHELL", "/bin/bash")
+
+# ---------------------------------------------------------------------------
+# Hardware throttle limits (percentage 0-100)
+# ---------------------------------------------------------------------------
+HARDWARE_THROTTLE_CPU_LIMIT: float = float(os.getenv("SYMON_CPU_LIMIT", "90"))
+HARDWARE_THROTTLE_GPU_LIMIT: float = float(os.getenv("SYMON_GPU_LIMIT", "90"))
+
 SCOPE_DECISIONS = {
     "migration_v1_architectures": ["llama", "qwen2", "mistral"],
     "frontend_location": "inside_this_repository:/frontend",

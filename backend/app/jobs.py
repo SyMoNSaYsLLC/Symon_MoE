@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import queue
 import re
 import subprocess
@@ -11,6 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 from .config import (
     CONVERTED_MODELS_DIR,
@@ -23,7 +27,162 @@ from .config import (
 from .schemas import ConversionJobRequest, MigrationJobRequest
 from .storage import ensure_storage_contract, load_metadata, save_metadata
 
+logger = logging.getLogger(__name__)
+
 SAFE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
+
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+
+
+# ---------------------------------------------------------------------------
+# PoolWorker — base class for workers that process generic job queues
+# ---------------------------------------------------------------------------
+
+class PoolWorker:
+    """Base class for workers backed by a threading.Queue.
+
+    Subclasses override ``_process(job_id, payload)`` to do actual work.
+    """
+
+    worker_key: str = "pool:base"
+
+    def __init__(self) -> None:
+        self._queue: queue.Queue[QueueItem] = queue.Queue()
+        self._current_job: str | None = None
+        self._lock = threading.Lock()
+        self._thread = threading.Thread(
+            target=self._loop, daemon=True, name=self.worker_key
+        )
+
+    def start(self) -> None:
+        self._thread.start()
+
+    def submit(self, job_id: str) -> None:
+        self._queue.put(QueueItem(job_id=job_id))
+
+    def status(self) -> dict:
+        return {
+            "type": self.worker_key.split(":")[0],
+            "worker_key": self.worker_key,
+            "current_job": self._current_job,
+            "queued": self._queue.qsize(),
+        }
+
+    def _loop(self) -> None:
+        while True:
+            item = self._queue.get()
+            with self._lock:
+                self._current_job = item.job_id
+            try:
+                self._process(item.job_id)
+            except Exception:  # pragma: no cover
+                logger.exception("Unhandled error in worker %s for job %s",
+                                  self.worker_key, item.job_id)
+            finally:
+                with self._lock:
+                    self._current_job = None
+                self._queue.task_done()
+
+    def _process(self, job_id: str) -> None:  # noqa: D401
+        raise NotImplementedError
+
+
+# ---------------------------------------------------------------------------
+# DatabaseWorker — serialises writes to the DB worker (thin shim)
+# ---------------------------------------------------------------------------
+
+class DatabaseWorker(PoolWorker):
+    """Serialises out-of-band DB writes that don't fit the async path."""
+
+    worker_key = "db:writer"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._write_queue: queue.Queue[tuple] = queue.Queue()
+        self._thread = threading.Thread(
+            target=self._write_loop, daemon=True, name="db-writer"
+        )
+
+    def enqueue_write(self, op: str, *args: Any) -> None:
+        self._write_queue.put((op, args))
+
+    def _write_loop(self) -> None:
+        from .db import DB_WORKER
+        while True:
+            op, args = self._write_queue.get()
+            try:
+                fn = getattr(DB_WORKER, op, None)
+                if fn:
+                    fn(*args)
+            except Exception:  # pragma: no cover
+                logger.exception("DB write error op=%s", op)
+            finally:
+                self._write_queue.task_done()
+
+    def _process(self, job_id: str) -> None:  # pragma: no cover
+        pass
+
+
+# ---------------------------------------------------------------------------
+# LlmWorker — non-blocking LLM inference via Ollama
+# ---------------------------------------------------------------------------
+
+class LlmWorker(PoolWorker):
+    """Pulls LLM job requests from a queue, calls Ollama, stores results in DB."""
+
+    worker_key = "llm:inference"
+
+    def __init__(self, jobs_ref: dict, lock: threading.Lock) -> None:
+        super().__init__()
+        self._jobs = jobs_ref
+        self._jobs_lock = lock
+
+    def _process(self, job_id: str) -> None:
+        with self._jobs_lock:
+            job = self._jobs.get(job_id)
+        if job is None:
+            return
+
+        request = job.get("request", {})
+        model = request.get("model", "llama3")
+        prompt = request.get("prompt", "")
+        options: dict = {}
+        if request.get("temperature") is not None:
+            options["temperature"] = request["temperature"]
+
+        self._update_job(job_id, status="running")
+        self._append_log(job_id, f"LlmWorker: calling model={model}")
+
+        try:
+            payload: dict = {"model": model, "prompt": prompt, "stream": False}
+            if options:
+                payload["options"] = options
+            resp = httpx.post(
+                f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=300.0
+            )
+            if resp.status_code != 200:
+                raise RuntimeError(f"Ollama returned {resp.status_code}: {resp.text[:200]}")
+            response_text = resp.json().get("response", "")
+            self._update_job(job_id, status="completed",
+                             result={"response": response_text})
+            self._append_log(job_id, "LlmWorker: completed")
+        except Exception as exc:
+            self._update_job(job_id, status="failed", error=str(exc))
+            self._append_log(job_id, f"LlmWorker error: {exc}")
+
+    def _update_job(self, job_id: str, **updates: Any) -> None:
+        with self._jobs_lock:
+            job = self._jobs.get(job_id)
+            if job:
+                job.update(updates)
+                job["updated_at"] = datetime.now(UTC)
+
+    def _append_log(self, job_id: str, line: str) -> None:
+        with self._jobs_lock:
+            job = self._jobs.get(job_id)
+            if job:
+                job.setdefault("logs", []).append(line)
+                job["updated_at"] = datetime.now(UTC)
 
 
 @dataclass
@@ -42,6 +201,11 @@ class JobManager:
         }
         self._migration_queue: queue.Queue[QueueItem] = queue.Queue()
         self._workers: dict[str, dict[str, Any]] = {}
+
+        # New workers
+        self._llm_worker = LlmWorker(self._jobs, self._lock)
+        self._db_writer = DatabaseWorker()
+
         self._start_workers()
 
     def _start_workers(self) -> None:
@@ -67,6 +231,10 @@ class JobManager:
         }
         t = threading.Thread(target=self._migration_worker_loop, daemon=True)
         t.start()
+
+        # Start new pool-based workers
+        self._llm_worker.start()
+        self._db_writer.start()
 
     def _now(self) -> datetime:
         return datetime.now(UTC)
