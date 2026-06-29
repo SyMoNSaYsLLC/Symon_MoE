@@ -208,11 +208,11 @@
               <label style="margin-top:0.4rem;">API Key
                 <div class="key-row">
                   <input id="tl-apiKey" type="password" placeholder="Leave empty for local Ollama" />
-                  <button id="tl-saveKeyBtn" style="white-space:nowrap;">💾 Save</button>
+                  <button id="tl-saveKeyBtn" style="white-space:nowrap;">💾 Save URL</button>
                 </div>
               </label>
-              <p class="hint">The API key is stored in <code>localStorage</code> (browser-side only,
-                never sent to the Symoneural backend).</p>
+              <p class="hint">The API key is kept in memory only (not saved to storage for security).
+                The base URL is saved to <code>localStorage</code>.</p>
             </details>
 
             <!-- Model and parameters -->

@@ -137,10 +137,10 @@ document.getElementById('tl-opBtn').addEventListener('click', async () => {
     if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
 
     meta.innerHTML = [
-      `A: <strong>${data.shape_a.join('×')}</strong>`,
-      `B: <strong>${data.shape_b.join('×')}</strong>`,
-      `Result: <strong>${data.shape_result.join('×')}</strong>`,
-      `op: <strong>${op}</strong>`,
+      `A: <strong>${escapeHtml(data.shape_a.join('×'))}</strong>`,
+      `B: <strong>${escapeHtml(data.shape_b.join('×'))}</strong>`,
+      `Result: <strong>${escapeHtml(data.shape_result.join('×'))}</strong>`,
+      `op: <strong>${escapeHtml(op)}</strong>`,
     ].join('&emsp;|&emsp;');
 
     preview.textContent = JSON.stringify(data.result, null, 2);
@@ -184,20 +184,21 @@ document.getElementById('tl-inspectBtn').addEventListener('click', async () => {
 // API key persistence
 // ---------------------------------------------------------------------------
 
-const KEY_STORAGE = 'tl_api_key';
+const KEY_STORAGE = 'tl_api_key';   // reserved but key is not persisted to localStorage
 const URL_STORAGE = 'tl_base_url';
 
 const apiKeyInput = document.getElementById('tl-apiKey');
 const baseUrlInput = document.getElementById('tl-baseUrl');
 
-// Restore saved values
-const savedKey = localStorage.getItem(KEY_STORAGE) || '';
+// Restore saved base URL (API key is intentionally not persisted)
+const savedKey = '';
 const savedUrl = localStorage.getItem(URL_STORAGE) || '';
 if (savedKey) apiKeyInput.value = savedKey;
 if (savedUrl) baseUrlInput.value = savedUrl;
 
 document.getElementById('tl-saveKeyBtn').addEventListener('click', () => {
-  localStorage.setItem(KEY_STORAGE, apiKeyInput.value);
+  // Only persist the base URL — never store the API key in localStorage
+  // to avoid leaving credentials in browser storage.
   localStorage.setItem(URL_STORAGE, baseUrlInput.value);
   const btn = document.getElementById('tl-saveKeyBtn');
   btn.textContent = '✅ Saved';
