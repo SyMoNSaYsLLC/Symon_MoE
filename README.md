@@ -118,3 +118,12 @@ ComfyUI-GGUF remain in their respective directories, keeping you compliant.
 Hugging Face directory (the "base model").
 3. Individual Architecture Control: You now have the exact paths to the conversion scripts
 that the maintainers of these repos use themselves
+
+## Interface modules
+
+Add interface-focused submodules alongside the conversion engines:
+
+```bash
+git submodule add https://github.com/anomalyco/opencode.git interfaces/opencode_cli
+git submodule add https://github.com/ggml-org/llama.cpp.git interfaces/llama_cpp_server
+```
