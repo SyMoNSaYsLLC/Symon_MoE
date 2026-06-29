@@ -1,0 +1,154 @@
+.TH SYMPY_CALC 1 "2026-06-29" "Symoneural" "Symoneural Helper Utilities"
+.SH NAME
+sympy_calc \- SymPy-based calculus engine (derivatives, integrals, limits, ODEs, numeric)
+.SH SYNOPSIS
+.B python helpers/python/sympy_calc.py
+.I MODE
+.I EXPR
+.RB [ \-\-var
+.IR VAR ]
+.RB [ \-\-order
+.IR N ]
+.RB [ \-\-lower
+.IR L ]
+.RB [ \-\-upper
+.IR U ]
+.RB [ \-\-point
+.IR P ]
+.RB [ \-\-direction
+.BR + | \- | +\- ]
+.RB [ \-\-func
+.IR F ]
+.RB [ \-\-precision
+.IR N ]
+.SH DESCRIPTION
+.B sympy_calc.py
+evaluates a mathematical expression using the SymPy symbolic mathematics
+library and returns LaTeX output, a numeric approximation, and a SymPy
+string representation.  It is also the engine behind the
+.B /api/calc
+backend endpoint.
+.SH MODES
+.TP
+.B derivative
+Compute the n-th derivative of
+.I EXPR
+with respect to
+.IR VAR .
+.TP
+.B integral
+Compute the indefinite or definite integral of
+.I EXPR .
+Specify
+.B \-\-lower
+and
+.B \-\-upper
+for a definite integral.
+.TP
+.B limit
+Compute
+.RI lim_{ VAR \→ P }
+.I EXPR .
+Use
+.B \-\-direction
+to control one-sided vs two-sided limit.
+.TP
+.B ode
+Solve an ordinary differential equation expressed as a SymPy expression.
+The equation is assumed equal to zero unless wrapped with
+.BR Eq() .
+.TP
+.B numeric
+Numerically evaluate
+.I EXPR
+to
+.I N
+significant digits after substituting any variable values.
+.SH OPTIONS
+.TP
+.B \-\-var \fIVAR\fR
+Variable name (default:
+.BR x ).
+.TP
+.B \-\-order \fIN\fR
+Derivative order (default:
+.BR 1 ).
+.TP
+.B \-\-lower \fIL\fR
+Lower bound for definite integrals.
+.TP
+.B \-\-upper \fIU\fR
+Upper bound for definite integrals.
+.TP
+.B \-\-point \fIP\fR
+Limit point (default:
+.BR 0 ).
+Use
+.B oo
+for infinity.
+.TP
+.B \-\-direction \fI{+,-,+-}\fR
+Limit direction (default:
+.BR + ).
+.TP
+.B \-\-func \fIF\fR
+Dependent function name for ODE mode (default:
+.BR y ).
+.TP
+.B \-\-precision \fIN\fR
+Numeric precision in significant digits (default:
+.BR 15 ).
+.SH EXAMPLES
+.PP
+Second derivative:
+.RS
+.EX
+python helpers/python/sympy_calc.py derivative "x**4 - 3*x**2 + 1" \-\-order 2
+.EE
+.RE
+.PP
+Definite integral from 0 to π:
+.RS
+.EX
+python helpers/python/sympy_calc.py integral "sin(x)" \-\-lower 0 \-\-upper pi
+.EE
+.RE
+.PP
+Two-sided limit at 0:
+.RS
+.EX
+python helpers/python/sympy_calc.py limit "sin(x)/x" \-\-point 0 \-\-direction +-
+.EE
+.RE
+.PP
+Solve ODE y' + y = x:
+.RS
+.EX
+python helpers/python/sympy_calc.py ode "y(x).diff(x) + y(x) - x"
+.EE
+.RE
+.PP
+Evaluate to 30 digits:
+.RS
+.EX
+python helpers/python/sympy_calc.py numeric "sqrt(2) + pi" \-\-precision 30
+.EE
+.RE
+.SH OUTPUT
+JSON object with keys:
+.TP
+.B latex
+LaTeX-rendered result string.
+.TP
+.B numeric
+Decimal approximation string (empty for indefinite integrals).
+.TP
+.B expr
+SymPy string representation.
+.SH DEPENDENCIES
+.B sympy
+(pip install sympy).
+.SH SEE ALSO
+.BR tensor_utils (1)
+.SH AUTHORS
+Symoneural contributors.

@@ -1,0 +1,80 @@
+.TH OLLAMA_COMPAT 1 "2026-06-29" "Symoneural" "Symoneural Helper Utilities"
+.SH NAME
+ollama_compat \- Ollama Modelfile generator and REST API wrappers
+.SH SYNOPSIS
+.B python helpers/python/ollama_compat.py
+.RB [ \-\-base\-url
+.IR URL ]
+.I COMMAND
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B ollama_compat.py
+provides CLI commands to generate Ollama Modelfiles from local GGUF paths,
+list models, pull models from the registry, and delete models.
+.SH COMMANDS
+.TP
+.B modelfile \fIgguf\fR [\-\-out \fIPATH\fR] [\-\-system \fITEXT\fR] [\-\-temperature \fIFLOAT\fR]
+Generate (and optionally write) an Ollama Modelfile for the GGUF at
+.IR gguf .
+If
+.B \-\-out
+is omitted, the Modelfile is printed to stdout.
+.TP
+.B list
+Print the names of all models currently available in the Ollama instance.
+.TP
+.B pull \fINAME\fR
+Pull model
+.I NAME
+from the Ollama registry (e.g.
+.BR llama3:8b ).
+.TP
+.B delete \fINAME\fR
+Delete model
+.I NAME
+from the local Ollama instance.
+.SH OPTIONS
+.TP
+.B \-\-base\-url \fIURL\fR
+Ollama instance base URL (default:
+.BR http://localhost:11434 ).
+.SH EXAMPLES
+.PP
+Generate a Modelfile to stdout:
+.RS
+.EX
+python helpers/python/ollama_compat.py modelfile path/to/model.gguf \-\-system "You are helpful."
+.EE
+.RE
+.PP
+Write Modelfile with temperature:
+.RS
+.EX
+python helpers/python/ollama_compat.py modelfile path/to/model.gguf \-\-out Modelfile \-\-temperature 0.7
+.EE
+.RE
+.PP
+List loaded models:
+.RS
+.EX
+python helpers/python/ollama_compat.py list
+.EE
+.RE
+.PP
+Pull llama3:
+.RS
+.EX
+python helpers/python/ollama_compat.py pull llama3:8b
+.EE
+.RE
+.SH ENVIRONMENT
+.TP
+.B OLLAMA_BASE_URL
+Overrides the default Ollama base URL when used as a library.
+.SH DEPENDENCIES
+.B httpx
+(pip install httpx).
+.SH SEE ALSO
+.BR gguf_inspect (1)
+.SH AUTHORS
+Symoneural contributors.

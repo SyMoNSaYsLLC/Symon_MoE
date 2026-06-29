@@ -49,9 +49,42 @@ git submodule update --init --recursive
 2. **Frontend location:** inside this repository at `frontend/`.
 3. **Cloudflare auth in v1:** no (Cloudflare used for edge proxy/CDN/CORS posture first).
 
-## Backend API
+## Documentation
 
-Run:
+Full reference documentation lives under `docs/`:
+
+| File | Content |
+|------|---------|
+| [`docs/backend-api.md`](docs/backend-api.md) | Complete REST API reference for all endpoints |
+| [`docs/helpers-python.md`](docs/helpers-python.md) | Python helper scripts API + CLI reference |
+| [`docs/helpers-cpp.md`](docs/helpers-cpp.md) | C++ helper library API + CLI reference |
+| [`docs/helpers-rust.md`](docs/helpers-rust.md) | Rust crate API + CLI reference |
+| [`docs/helpers-java.md`](docs/helpers-java.md) | Java class API + CLI reference |
+| [`docs/tensor-guide.md`](docs/tensor-guide.md) | Tensor concepts, dtypes, LoRA, and GGUF guide |
+
+## Man Pages
+
+Unix-style man pages for every Python CLI tool live under `man/man1/`:
+
+```bash
+man -l man/man1/tensor_utils.1
+man -l man/man1/gguf_inspect.1
+man -l man/man1/quant_utils.1
+man -l man/man1/lora_merge.1
+man -l man/man1/diffusion_convert.1
+man -l man/man1/ollama_compat.1
+man -l man/man1/sympy_calc.1
+```
+
+To install system-wide (Linux/macOS):
+
+```bash
+sudo cp man/man1/*.1 /usr/local/share/man/man1/
+sudo mandb       # Linux
+sudo makewhatis  # macOS
+```
+
+
 
 ```bash
 pip install -r requirements.txt
@@ -88,6 +121,11 @@ uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 | GET | `/api/calc/modes` | List calculator modes |
 | POST | `/api/iptv/parse` | Parse M3U playlist from URL |
 | POST | `/api/iptv/parse/text` | Parse M3U from raw text |
+| GET | `/api/tensor/dtypes` | List tensor dtypes |
+| POST | `/api/tensor/create` | Create a tensor (zeros/ones/range/random) |
+| POST | `/api/tensor/op` | Apply binary op to two tensors |
+| GET | `/api/tensor/model/info` | Fetch Ollama model parameters |
+| POST | `/api/tensor/chat` | Chat with full parameter control + API key |
 
 ## Frontend Apps
 
@@ -103,6 +141,7 @@ provides navigation to:
 | Text to Image | `/apps/text_to_image.html` | Diffusion GGUF image generation |
 | Text to Video | `/apps/text_to_video.html` | CogVideoX / ModelScope video generation |
 | IPTV | `/apps/iptv.html` | M3U playlist loader + HLS player |
+| Tensor Lab | `/apps/tensor_lab.html` | Tensor creation/ops, model param customisation, API-key chat |
 
 ## Helper Libraries
 
@@ -222,4 +261,6 @@ Recommended rollout after API/UI stability:
 9. New backend API routers (chat, code, image, video, calculator, iptv) ✅
 10. Frontend app pages + sidebar nav ✅
 11. Orchestration pipeline scripts (image, video) ✅
+12. Documentation and man pages (docs/, man/man1/) ✅
+13. Tensor Lab: frontend app + backend router with API-key support ✅
 

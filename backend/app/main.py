@@ -17,7 +17,7 @@ from .config import (
     SUPPORTED_MIGRATION_COMBINATIONS,
 )
 from .jobs import JOB_MANAGER
-from .routers import calculator, chat, code_assist, image_gen, iptv, video_gen
+from .routers import calculator, chat, code_assist, image_gen, iptv, tensor_lab, video_gen
 from .schemas import ConversionJobRequest, MigrationJobRequest
 from .storage import ensure_storage_contract, scan_models
 
@@ -34,7 +34,7 @@ app.add_middleware(
 )
 
 # Register new feature routers
-for _router in (chat.router, code_assist.router, image_gen.router, video_gen.router, calculator.router, iptv.router):
+for _router in (chat.router, code_assist.router, image_gen.router, video_gen.router, calculator.router, iptv.router, tensor_lab.router):
     app.include_router(_router)
 
 
