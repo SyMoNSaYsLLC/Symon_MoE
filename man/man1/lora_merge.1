@@ -1,0 +1,97 @@
+.TH LORA_MERGE 1 "2026-06-29" "Symoneural" "Symoneural Helper Utilities"
+.SH NAME
+lora_merge \- merge LoRA adapter weights into a base model checkpoint
+.SH SYNOPSIS
+.B python helpers/python/lora_merge.py
+.I base
+.I lora
+.I output
+.RB [ \-\-alpha
+.IR FLOAT ]
+.RB [ \-\-style
+.BR peft | kohya ]
+.SH DESCRIPTION
+.B lora_merge.py
+merges a LoRA adapter
+.I .safetensors
+file into a base model
+.I .safetensors
+file and writes the merged checkpoint to
+.IR output .
+The merge formula is:
+.IP
+W_merged = W_base + alpha * (B @ A)
+.PP
+Two LoRA adapter styles are supported:
+.TP
+.B peft
+PEFT-style adapters storing
+.B lora_A.weight
+and
+.B lora_B.weight
+tensors under
+.BR base_model.model.<layer> .
+.TP
+.B kohya
+Kohya-style adapters storing
+.B lora_down.weight
+and
+.B lora_up.weight
+tensors.
+.SH OPTIONS
+.TP
+.I base
+Base model
+.I .safetensors
+file path.
+.TP
+.I lora
+LoRA adapter
+.I .safetensors
+file path.
+.TP
+.I output
+Destination path for the merged
+.I .safetensors
+file.
+.TP
+.B \-\-alpha \fIFLOAT\fR
+LoRA merge scale factor (default:
+.BR 1.0 ).
+Typical value is
+.B lora_alpha / lora_rank
+from the adapter config.
+.TP
+.B \-\-style \fB{peft,kohya}\fR
+Adapter format style (default:
+.BR peft ).
+.SH EXAMPLES
+.PP
+Merge a PEFT adapter:
+.RS
+.EX
+python helpers/python/lora_merge.py base.safetensors adapter.safetensors merged.safetensors
+.EE
+.RE
+.PP
+Merge a Kohya-style LoRA with custom alpha:
+.RS
+.EX
+python helpers/python/lora_merge.py base.safetensors kohya.safetensors merged.safetensors \e
+    \-\-style kohya \-\-alpha 0.75
+.EE
+.RE
+.SH DIAGNOSTICS
+Shape mismatches and missing base keys are printed to
+.B stderr
+and skipped without aborting the merge.
+.SH DEPENDENCIES
+.B safetensors
+(pip install safetensors),
+.B numpy
+(pip install numpy).
+.SH SEE ALSO
+.BR tensor_utils (1),
+.BR gguf_inspect (1)
+.SH AUTHORS
+Symoneural contributors.

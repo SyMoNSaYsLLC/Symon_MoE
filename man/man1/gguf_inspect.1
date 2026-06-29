@@ -1,0 +1,85 @@
+.TH GGUF_INSPECT 1 "2026-06-29" "Symoneural" "Symoneural Helper Utilities"
+.SH NAME
+gguf_inspect \- GGUF file metadata reader and patcher
+.SH SYNOPSIS
+.B python helpers/python/gguf_inspect.py
+.B read
+.I path
+.RB [ \-\-key
+.IR KEY ]
+.RB [ \-\-tensors ]
+.PP
+.B python helpers/python/gguf_inspect.py
+.B patch
+.I path
+.I output
+.I patches
+.SH DESCRIPTION
+.B gguf_inspect.py
+provides sub-commands to read or modify GGUF file metadata.
+The
+.B read
+sub-command prints metadata KV pairs or tensor descriptors as JSON.
+The
+.B patch
+sub-command copies a GGUF file and applies JSON-specified metadata updates.
+.SH COMMANDS
+.TP
+.B read \fIpath\fR [\-\-key \fIKEY\fR] [\-\-tensors]
+Read metadata from
+.IR path .
+Without options, all KV metadata is printed as JSON.
+With
+.B \-\-key
+.IR KEY ,
+only the value for that key is printed.
+With
+.BR \-\-tensors ,
+tensor descriptors (name, shape, type, n_elements, data_offset) are printed instead.
+.TP
+.B patch \fIsrc\fR \fIdst\fR \fIpatches\fR
+Copy
+.I src
+to
+.I dst
+and apply
+.I patches
+(a JSON object string) to the metadata.
+Only string and numeric scalar patches are supported; tensor data is copied verbatim.
+.SH EXAMPLES
+.PP
+Read all metadata:
+.RS
+.EX
+python helpers/python/gguf_inspect.py read model.gguf
+.EE
+.RE
+.PP
+Read a single key:
+.RS
+.EX
+python helpers/python/gguf_inspect.py read model.gguf \-\-key general.architecture
+.EE
+.RE
+.PP
+List tensors:
+.RS
+.EX
+python helpers/python/gguf_inspect.py read model.gguf \-\-tensors
+.EE
+.RE
+.PP
+Patch metadata:
+.RS
+.EX
+python helpers/python/gguf_inspect.py patch model.gguf patched.gguf '{"general.name":"MyModel"}'
+.EE
+.RE
+.SH DEPENDENCIES
+.B gguf
+(pip install gguf).
+.SH SEE ALSO
+.BR tensor_utils (1),
+.BR quant_utils (1)
+.SH AUTHORS
+Symoneural contributors.

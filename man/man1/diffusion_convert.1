@@ -1,0 +1,95 @@
+.TH DIFFUSION_CONVERT 1 "2026-06-29" "Symoneural" "Symoneural Helper Utilities"
+.SH NAME
+diffusion_convert \- convert .safetensors diffusion checkpoints to GGUF
+.SH SYNOPSIS
+.B python helpers/python/diffusion_convert.py convert
+.I src
+.I dst
+.RB [ \-\-type
+.IR QUANT ]
+.RB [ \-\-bin
+.IR PATH ]
+.PP
+.B python helpers/python/diffusion_convert.py batch
+.I src_dir
+.I dst_dir
+.RB [ \-\-type
+.IR QUANT ]
+.RB [ \-\-bin
+.IR PATH ]
+.SH DESCRIPTION
+.B diffusion_convert.py
+wraps the
+.B stable-diffusion.cpp
+command-line binary to convert diffusion model weights from
+.I .safetensors
+format to GGUF with optional quantisation.
+.PP
+The
+.B convert
+sub-command handles a single file.
+The
+.B batch
+sub-command converts all
+.I .safetensors
+files in a directory.
+.SH COMMANDS
+.TP
+.B convert \fIsrc\fR \fIdst\fR [\-\-type \fIQUANT\fR] [\-\-bin \fIPATH\fR]
+Convert
+.I src
+to
+.I dst
+using quantisation type
+.I QUANT
+(default:
+.BR f16 ).
+.TP
+.B batch \fIsrc_dir\fR \fIdst_dir\fR [\-\-type \fIQUANT\fR] [\-\-bin \fIPATH\fR]
+Convert every
+.I .safetensors
+file in
+.I src_dir
+and write GGUF outputs to
+.IR dst_dir .
+Exits with code 1 if any conversion fails.
+.SH OPTIONS
+.TP
+.B \-\-type \fIQUANT\fR
+Quantisation type flag passed to the
+.B sd
+binary.  Common values: 
+.BR f32 ", " f16 ", " q8_0 ", " q4_0 .
+Default:
+.BR f16 .
+.TP
+.B \-\-bin \fIPATH\fR
+Override the path to the
+.B sd
+binary.  By default the binary is expected at
+.IR converters/diffusers_cpp/build/bin/sd .
+.SH EXAMPLES
+.PP
+Single conversion:
+.RS
+.EX
+python helpers/python/diffusion_convert.py convert sd-v1-5.safetensors sd-v1-5.gguf \-\-type f16
+.EE
+.RE
+.PP
+Batch conversion at Q8:
+.RS
+.EX
+python helpers/python/diffusion_convert.py batch ./raw_models/ ./converted/ \-\-type q8_0
+.EE
+.RE
+.SH FILES
+.TP
+.I converters/diffusers_cpp/
+stable-diffusion.cpp git submodule.  Build with:
+.BR "cmake -B converters/diffusers_cpp/build -S converters/diffusers_cpp && cmake --build converters/diffusers_cpp/build -j" .
+.SH SEE ALSO
+.BR gguf_inspect (1),
+.BR quant_utils (1)
+.SH AUTHORS
+Symoneural contributors.

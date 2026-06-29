@@ -1,0 +1,73 @@
+.TH TENSOR_UTILS 1 "2026-06-29" "Symoneural" "Symoneural Helper Utilities"
+.SH NAME
+tensor_utils \- safetensors and GGUF tensor inspection, slicing, and dtype casting
+.SH SYNOPSIS
+.B python helpers/python/tensor_utils.py
+.I path
+.RB [ \-\-tensor
+.IR NAME ]
+.SH DESCRIPTION
+.B tensor_utils.py
+is a command-line tool and importable Python module for inspecting
+.I .safetensors
+files.  It lists tensor names, shapes, dtypes, and memory sizes, and
+optionally filters output to a single named tensor.
+.PP
+The module also provides helpers for casting tensors between dtypes
+and for estimating GGUF quantised block sizes.
+.SH OPTIONS
+.TP
+.I path
+Path to the
+.B .safetensors
+file to inspect.
+.TP
+.B \-\-tensor \fINAME\fR
+Print information for only the tensor named
+.IR NAME .
+If omitted, all tensors are listed.
+.SH OUTPUT
+JSON array of tensor descriptors.  Each entry has the fields:
+.RS
+.IP name
+Tensor key name inside the file.
+.IP shape
+List of dimension sizes.
+.IP dtype
+NumPy dtype string (e.g.
+.BR float32 ).
+.IP nbytes
+Memory footprint in bytes.
+.RE
+.SH EXAMPLES
+.PP
+List all tensors:
+.RS
+.EX
+python helpers/python/tensor_utils.py model.safetensors
+.EE
+.RE
+.PP
+Show one tensor:
+.RS
+.EX
+python helpers/python/tensor_utils.py model.safetensors \-\-tensor model.embed_tokens.weight
+.EE
+.RE
+.SH ENVIRONMENT
+.TP
+.B PYTHONPATH
+Must include
+.B helpers/python/
+if running from a directory other than the repo root.
+.SH DEPENDENCIES
+.B safetensors
+(pip install safetensors),
+.B numpy
+(pip install numpy).
+.SH SEE ALSO
+.BR gguf_inspect (1),
+.BR lora_merge (1),
+.BR quant_utils (1)
+.SH AUTHORS
+Symoneural contributors.

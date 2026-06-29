@@ -1,0 +1,78 @@
+.TH QUANT_UTILS 1 "2026-06-29" "Symoneural" "Symoneural Helper Utilities"
+.SH NAME
+quant_utils \- quantisation preset helper for GGUF models
+.SH SYNOPSIS
+.B python helpers/python/quant_utils.py list
+.PP
+.B python helpers/python/quant_utils.py info
+.I PRESET
+.PP
+.B python helpers/python/quant_utils.py estimate
+.I PARAMS
+.I PRESET
+.SH DESCRIPTION
+.B quant_utils.py
+manages named quantisation presets for llama.cpp and stable-diffusion.cpp,
+lists available presets, displays preset details, and estimates on-disk model
+size in GB for a given parameter count and preset.
+.SH COMMANDS
+.TP
+.B list
+Print all available presets with bits-per-weight and description.
+.TP
+.B info \fIPRESET\fR
+Print full details for
+.I PRESET
+as JSON, including the llama.cpp
+.B \-\-outtype
+flag value and suitable-for tags.
+.TP
+.B estimate \fIPARAMS\fR \fIPRESET\fR
+Estimate on-disk size in GB.
+.I PARAMS
+is the number of parameters (e.g.
+.B 7e9
+for a 7B model).
+.SH AVAILABLE PRESETS
+.PP
+.BR fp32 ", " fp16 ", " bf16
+(full-precision),
+.BR q8_0
+(8-bit near-lossless),
+.BR q5_k_s ", " q5_k_m
+(5-bit K-quant),
+.BR q4_k_s ", " q4_k_m
+(4-bit K-quant — recommended),
+.BR q4_0 ", " q4_1
+(legacy 4-bit),
+.BR q3_k_s ", " q3_k_m
+(3-bit K-quant),
+.B q2_k
+(2-bit extreme).
+.SH EXAMPLES
+.PP
+List all presets:
+.RS
+.EX
+python helpers/python/quant_utils.py list
+.EE
+.RE
+.PP
+Show preset details:
+.RS
+.EX
+python helpers/python/quant_utils.py info q4_k_m
+.EE
+.RE
+.PP
+Estimate a 7B model size at Q4_K_M:
+.RS
+.EX
+python helpers/python/quant_utils.py estimate 7e9 q4_k_m
+.EE
+.RE
+.SH SEE ALSO
+.BR gguf_inspect (1),
+.BR diffusion_convert (1)
+.SH AUTHORS
+Symoneural contributors.
