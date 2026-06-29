@@ -1,3 +1,29 @@
-from . import calculator, chat, code_assist, image_gen, iptv, tensor_lab, video_gen
+from . import (
+    calculator,
+    chat,
+    code_assist,
+    database,
+    embedded,
+    image_gen,
+    iptv,
+    llm_ops,
+    mining,
+    tensor_lab,
+    terminal,
+    video_gen,
+)
 
-__all__ = ["calculator", "chat", "code_assist", "image_gen", "iptv", "tensor_lab", "video_gen"]
+__all__ = [
+    "calculator",
+    "chat",
+    "code_assist",
+    "database",
+    "embedded",
+    "image_gen",
+    "iptv",
+    "llm_ops",
+    "mining",
+    "tensor_lab",
+    "terminal",
+    "video_gen",
+]

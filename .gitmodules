@@ -26,3 +26,30 @@
 [submodule "interfaces/open_webui"]
 	path = interfaces/open_webui
 	url = https://github.com/open-webui/open-webui.git
+[submodule "miners/braiins_os"]
+path = miners/braiins_os
+url = https://github.com/braiins/braiins-os.git
+[submodule "miners/cgminer"]
+path = miners/cgminer
+url = https://github.com/ckolivas/cgminer.git
+[submodule "miners/bmminer"]
+path = miners/bmminer
+url = https://github.com/jameshilliard/bmminer.git
+[submodule "miners/whatsminer"]
+path = miners/whatsminer
+url = https://github.com/satoshiware/whatsminer-api.git
+[submodule "miners/stratum_proxy"]
+path = miners/stratum_proxy
+url = https://github.com/slush0/stratum-mining-proxy.git
+[submodule "embedded/poky"]
+path = embedded/poky
+url = https://github.com/yoctoproject/poky.git
+[submodule "embedded/meta-openembedded"]
+path = embedded/meta-openembedded
+url = https://github.com/openembedded/meta-openembedded.git
+[submodule "embedded/meta-petalinux"]
+path = embedded/meta-petalinux
+url = https://github.com/Xilinx/meta-petalinux.git
+[submodule "embedded/kas"]
+path = embedded/kas
+url = https://github.com/siemens/kas.git

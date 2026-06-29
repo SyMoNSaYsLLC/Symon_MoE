@@ -30,7 +30,7 @@ class MigrationJobRequest(APIModel):
 
 class JobRecord(APIModel):
     id: str
-    job_type: Literal["conversion", "migration"]
+    job_type: Literal["conversion", "migration", "llm"]
     status: Literal["queued", "running", "completed", "failed"]
     created_at: datetime
     updated_at: datetime

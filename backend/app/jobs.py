@@ -8,20 +8,35 @@ import sys
 import threading
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from .config import (
     CONVERTED_MODELS_DIR,
+    DB_PATH,
     MIGRATED_MODELS_DIR,
     ORCHESTRATION_CONVERTER,
     RAW_MODELS_DIR,
     SUPPORTED_ARCHITECTURES,
     SUPPORTED_MIGRATION_COMBINATIONS,
 )
+from .db import DbWorker
 from .schemas import ConversionJobRequest, MigrationJobRequest
 from .storage import ensure_storage_contract, load_metadata, save_metadata
+
+HELPERS_PYTHON_DIR = Path(__file__).resolve().parents[2] / "helpers" / "python"
+if str(HELPERS_PYTHON_DIR) not in sys.path:
+    sys.path.append(str(HELPERS_PYTHON_DIR))
+
+try:
+    from hardware_throttle import throttle_check
+except Exception:  # pragma: no cover
+    def throttle_check() -> bool:
+        return True
+
 
 SAFE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -31,45 +46,169 @@ class QueueItem:
     job_id: str
 
 
+@dataclass
+class LlmQueueItem:
+    job_id: str
+    operation: str
+    prompt: str
+    model: str
+    context: dict[str, Any]
+
+
+@dataclass
+class DbTask:
+    operation: str
+    payload: dict[str, Any]
+
+
+class PoolWorker(threading.Thread):
+    def __init__(self, manager: "JobManager", worker_key: str, worker_type: str, architecture: str) -> None:
+        super().__init__(daemon=True)
+        self.manager = manager
+        self.worker_key = worker_key
+        self.worker_type = worker_type
+        self.architecture = architecture
+        self._queue: queue.Queue[Any] = queue.Queue()
+        self.current_job: str | None = None
+        self.last_task: str | None = None
+
+    @property
+    def queued(self) -> int:
+        return self._queue.qsize()
+
+    def enqueue(self, item: Any) -> None:
+        self._queue.put(item)
+
+    def run(self) -> None:
+        while True:
+            item = self._queue.get()
+            self.current_job = getattr(item, "job_id", None)
+            try:
+                if not throttle_check():
+                    self.last_task = "throttled"
+                    self.manager._append_log(self.current_job or "", "Worker throttled due to hardware limits.")
+                    self._queue.put(item)
+                    continue
+                self.process_item(item)
+                self.last_task = f"processed:{self.current_job or 'task'}"
+            finally:
+                self.current_job = None
+                self._queue.task_done()
+
+    def process_item(self, item: Any) -> None:
+        raise NotImplementedError
+
+
+class DatabaseWorker(PoolWorker):
+    def __init__(self, manager: "JobManager") -> None:
+        super().__init__(manager, "database:sqlite", "database", "sqlite")
+
+    def process_item(self, item: DbTask) -> None:
+        if item.operation == "job_create":
+            self.manager.db.create_job(item.payload)
+        elif item.operation == "job_update":
+            self.manager.db.update_job(
+                item.payload["id"],
+                item.payload["status"],
+                item.payload.get("worker"),
+                item.payload.get("result"),
+                item.payload.get("error"),
+            )
+        elif item.operation == "log_append":
+            self.manager.db.append_log(item.payload["job_id"], item.payload["line"])
+        elif item.operation == "worker_event":
+            self.manager.db.add_worker_event(
+                item.payload["worker_name"],
+                item.payload["event_type"],
+                item.payload.get("payload"),
+            )
+
+
+class ConversionWorker(PoolWorker):
+    def __init__(self, manager: "JobManager", architecture: str) -> None:
+        super().__init__(manager, f"conversion:{architecture}", "conversion", architecture)
+
+    def process_item(self, item: QueueItem) -> None:
+        self.manager._process_conversion_job(item.job_id, self.architecture)
+
+
+class MigrationWorker(PoolWorker):
+    def __init__(self, manager: "JobManager") -> None:
+        super().__init__(manager, "migration:v1", "migration", "v1")
+
+    def process_item(self, item: QueueItem) -> None:
+        self.manager._process_migration_job(item.job_id)
+
+
+class LlmWorker(PoolWorker):
+    def __init__(self, manager: "JobManager") -> None:
+        super().__init__(manager, "llm:ollama", "llm", "ollama")
+
+    def process_item(self, item: LlmQueueItem) -> None:
+        self.manager._update_job(item.job_id, status="running", worker=self.worker_key)
+        self.manager._append_log(item.job_id, f"Dispatching {item.operation} prompt to Ollama model '{item.model}'.")
+
+        payload = {
+            "model": item.model,
+            "prompt": item.prompt,
+            "stream": False,
+        }
+        try:
+            with httpx.Client(timeout=120.0) as client:
+                resp = client.post(f"{self.manager.ollama_base_url}/api/generate", json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+                response_text = data.get("response", "")
+                self.manager._append_log(item.job_id, "LLM request completed.")
+                self.manager._update_job(
+                    item.job_id,
+                    status="completed",
+                    worker=self.worker_key,
+                    result={
+                        "operation": item.operation,
+                        "model": item.model,
+                        "response": response_text,
+                        "context": item.context,
+                    },
+                )
+        except Exception as exc:
+            self.manager._append_log(item.job_id, f"LLM request failed: {exc}")
+            self.manager._update_job(
+                item.job_id,
+                status="failed",
+                worker=self.worker_key,
+                error=f"LLM request failed: {exc}",
+            )
+
+
 class JobManager:
     def __init__(self) -> None:
         ensure_storage_contract()
-        self._jobs: dict[str, dict[str, Any]] = {}
-        self._lock = threading.Lock()
+        self.db = DbWorker(DB_PATH)
+        self.db.start()
+        self.ollama_base_url = "http://localhost:11434"
 
-        self._conversion_queues: dict[str, queue.Queue[QueueItem]] = {
-            architecture: queue.Queue() for architecture in SUPPORTED_ARCHITECTURES
-        }
-        self._migration_queue: queue.Queue[QueueItem] = queue.Queue()
-        self._workers: dict[str, dict[str, Any]] = {}
-        self._start_workers()
+        self._workers: dict[str, PoolWorker] = {}
+        self._database_worker = DatabaseWorker(self)
+        self._workers[self._database_worker.worker_key] = self._database_worker
 
-    def _start_workers(self) -> None:
-        for architecture, q in self._conversion_queues.items():
-            self._workers[f"conversion:{architecture}"] = {
-                "type": "conversion",
-                "architecture": architecture,
-                "current_job": None,
-                "queue": q,
-            }
-            t = threading.Thread(
-                target=self._conversion_worker_loop,
-                args=(architecture, q),
-                daemon=True,
-            )
-            t.start()
+        self._conversion_workers: dict[str, ConversionWorker] = {}
+        for architecture in SUPPORTED_ARCHITECTURES:
+            worker = ConversionWorker(self, architecture)
+            self._conversion_workers[architecture] = worker
+            self._workers[worker.worker_key] = worker
 
-        self._workers["migration:v1"] = {
-            "type": "migration",
-            "architecture": "v1",
-            "current_job": None,
-            "queue": self._migration_queue,
-        }
-        t = threading.Thread(target=self._migration_worker_loop, daemon=True)
-        t.start()
+        self._migration_worker = MigrationWorker(self)
+        self._workers[self._migration_worker.worker_key] = self._migration_worker
 
-    def _now(self) -> datetime:
-        return datetime.now(UTC)
+        self._llm_worker = LlmWorker(self)
+        self._workers[self._llm_worker.worker_key] = self._llm_worker
+
+        for worker in self._workers.values():
+            worker.start()
+
+    def _now(self) -> str:
+        return datetime.now(UTC).isoformat()
 
     def _validate_safe_name(self, value: str, field_name: str, expected_suffix: str | None = None) -> str:
         if not SAFE_NAME_PATTERN.fullmatch(value):
@@ -94,8 +233,79 @@ class JobManager:
                 return entry.resolve()
         return None
 
+    def _db_enqueue(self, operation: str, payload: dict[str, Any], wait: bool = False) -> None:
+        self._database_worker.enqueue(DbTask(operation=operation, payload=payload))
+        if wait:
+            self._database_worker._queue.join()
+
+    def _create_job(
+        self,
+        job_id: str,
+        job_type: str,
+        worker: str,
+        request_payload: dict[str, Any],
+        initial_log: str,
+    ) -> dict[str, Any]:
+        now = self._now()
+        job = {
+            "id": job_id,
+            "job_type": job_type,
+            "status": "queued",
+            "created_at": now,
+            "updated_at": now,
+            "worker": worker,
+            "request": request_payload,
+            "result": None,
+            "error": None,
+        }
+        self._db_enqueue("job_create", job, wait=True)
+        self._db_enqueue("log_append", {"job_id": job_id, "line": initial_log}, wait=True)
+        self._db_enqueue(
+            "worker_event",
+            {
+                "worker_name": worker,
+                "event_type": "job_queued",
+                "payload": {"job_id": job_id, "job_type": job_type},
+            },
+        )
+        return {**job, "logs": [initial_log]}
+
+    def _update_job(
+        self,
+        job_id: str,
+        status: str,
+        worker: str | None = None,
+        result: dict | None = None,
+        error: str | None = None,
+    ) -> None:
+        self._db_enqueue(
+            "job_update",
+            {
+                "id": job_id,
+                "status": status,
+                "worker": worker,
+                "result": result,
+                "error": error,
+            },
+            wait=True,
+        )
+        if worker:
+            self._db_enqueue(
+                "worker_event",
+                {
+                    "worker_name": worker,
+                    "event_type": f"job_{status}",
+                    "payload": {"job_id": job_id, "status": status},
+                },
+            )
+
+    def _append_log(self, job_id: str, line: str) -> None:
+        if not job_id:
+            return
+        self._db_enqueue("log_append", {"job_id": job_id, "line": line}, wait=False)
+
     def submit_conversion(self, request: ConversionJobRequest) -> dict[str, Any]:
-        if request.architecture not in self._conversion_queues:
+        if request.architecture not in self._conversion_workers:
             raise ValueError(f"Unsupported architecture '{request.architecture}'.")
 
         model_name = self._validate_safe_name(request.model_name, "model_name")
@@ -132,26 +342,18 @@ class JobManager:
             self._validate_safe_name(output_name, "output_name", ".gguf")
 
         job_id = str(uuid.uuid4())
-        now = self._now()
-        job = {
-            "id": job_id,
-            "job_type": "conversion",
-            "status": "queued",
-            "created_at": now,
-            "updated_at": now,
-            "worker": f"conversion:{request.architecture}",
-            "request": {
+        job = self._create_job(
+            job_id=job_id,
+            job_type="conversion",
+            worker=f"conversion:{request.architecture}",
+            request_payload={
                 **request.model_dump(),
                 "model_name": model_name,
                 "model_dir": str(model_dir),
             },
-            "logs": [f"Queued conversion job for {model_name}."],
-            "result": None,
-            "error": None,
-        }
-        with self._lock:
-            self._jobs[job_id] = job
-            self._conversion_queues[request.architecture].put(QueueItem(job_id=job_id))
+            initial_log=f"Queued conversion job for {model_name}.",
+        )
+        self._conversion_workers[request.architecture].enqueue(QueueItem(job_id=job_id))
         return job
 
     def submit_migration(self, request: MigrationJobRequest) -> dict[str, Any]:
@@ -195,61 +397,57 @@ class JobManager:
             )
 
         job_id = str(uuid.uuid4())
-        now = self._now()
-        job = {
-            "id": job_id,
-            "job_type": "migration",
-            "status": "queued",
-            "created_at": now,
-            "updated_at": now,
-            "worker": "migration:v1",
-            "request": {
+        job = self._create_job(
+            job_id=job_id,
+            job_type="migration",
+            worker="migration:v1",
+            request_payload={
                 "sources": safe_sources,
                 "source_artifact_paths": source_artifact_paths,
                 "target_name": target_name,
             },
-            "logs": ["Queued 3-architecture GGUF migration job."],
-            "result": None,
-            "error": None,
-        }
-        with self._lock:
-            self._jobs[job_id] = job
-            self._migration_queue.put(QueueItem(job_id=job_id))
+            initial_log="Queued 3-architecture GGUF migration job.",
+        )
+        self._migration_worker.enqueue(QueueItem(job_id=job_id))
         return job
 
-    def _update_job(self, job_id: str, **updates: Any) -> None:
-        with self._lock:
-            job = self._jobs[job_id]
-            job.update(updates)
-            job["updated_at"] = self._now()
-
-    def _append_log(self, job_id: str, line: str) -> None:
-        with self._lock:
-            self._jobs[job_id]["logs"].append(line)
-            self._jobs[job_id]["updated_at"] = self._now()
-
-    def _conversion_worker_loop(self, architecture: str, q: queue.Queue[QueueItem]) -> None:
-        worker_key = f"conversion:{architecture}"
-        while True:
-            item = q.get()
-            self._workers[worker_key]["current_job"] = item.job_id
-            self._process_conversion_job(item.job_id, architecture)
-            self._workers[worker_key]["current_job"] = None
-            q.task_done()
-
-    def _migration_worker_loop(self) -> None:
-        worker_key = "migration:v1"
-        while True:
-            item = self._migration_queue.get()
-            self._workers[worker_key]["current_job"] = item.job_id
-            self._process_migration_job(item.job_id)
-            self._workers[worker_key]["current_job"] = None
-            self._migration_queue.task_done()
+    def submit_llm_job(
+        self,
+        operation: str,
+        prompt: str,
+        model: str = "llama3",
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        job_id = str(uuid.uuid4())
+        payload = {
+            "operation": operation,
+            "prompt": prompt,
+            "model": model,
+            "context": context or {},
+        }
+        job = self._create_job(
+            job_id=job_id,
+            job_type="llm",
+            worker="llm:ollama",
+            request_payload=payload,
+            initial_log=f"Queued LLM {operation} job.",
+        )
+        self._llm_worker.enqueue(
+            LlmQueueItem(
+                job_id=job_id,
+                operation=operation,
+                prompt=prompt,
+                model=model,
+                context=context or {},
+            )
+        )
+        return job
 
     def _process_conversion_job(self, job_id: str, architecture: str) -> None:
         job = self.get_job(job_id)
         request = job["request"]
-        self._update_job(job_id, status="running")
+        worker_key = f"conversion:{architecture}"
+        self._update_job(job_id, status="running", worker=worker_key)
 
         model_name = request["model_name"]
         requested_output = request.get("output_name")
@@ -302,6 +500,7 @@ class JobManager:
                 self._update_job(
                     job_id,
                     status="failed",
+                    worker=worker_key,
                     error=(
                         f"Conversion failed with exit code {completed.returncode}. "
                         "Check logs for details."
@@ -322,6 +521,7 @@ class JobManager:
             self._update_job(
                 job_id,
                 status="completed",
+                worker=worker_key,
                 result={
                     "artifact_type": "converted",
                     "artifact_name": output_name,
@@ -329,13 +529,14 @@ class JobManager:
                 },
             )
             self._append_log(job_id, f"Conversion completed: {output_name}")
-        except Exception as exc:  # pragma: no cover - defensive path
-            self._update_job(job_id, status="failed", error=f"Unexpected conversion error: {exc}")
+        except Exception as exc:  # pragma: no cover
+            self._update_job(job_id, status="failed", worker=worker_key, error=f"Unexpected conversion error: {exc}")
 
     def _process_migration_job(self, job_id: str) -> None:
         job = self.get_job(job_id)
         request = job["request"]
-        self._update_job(job_id, status="running")
+        worker_key = "migration:v1"
+        self._update_job(job_id, status="running", worker=worker_key)
 
         requested_target = request.get("target_name")
         if requested_target:
@@ -346,7 +547,7 @@ class JobManager:
         try:
             manifest = {
                 "job_id": job_id,
-                "generated_at": self._now().isoformat(),
+                "generated_at": self._now(),
                 "sources": request["sources"],
                 "strategy": "v1:three-architectures-to-one-gguf",
             }
@@ -368,34 +569,39 @@ class JobManager:
             self._update_job(
                 job_id,
                 status="completed",
+                worker=worker_key,
                 result={
                     "artifact_type": "migrated",
                     "artifact_name": target_name,
                     "artifact_path": str(target_path),
                 },
             )
-        except Exception as exc:  # pragma: no cover - defensive path
-            self._update_job(job_id, status="failed", error=f"Unexpected migration error: {exc}")
+        except Exception as exc:  # pragma: no cover
+            self._update_job(job_id, status="failed", worker=worker_key, error=f"Unexpected migration error: {exc}")
 
     def get_job(self, job_id: str) -> dict[str, Any]:
-        with self._lock:
-            job = self._jobs.get(job_id)
-            if job is None:
-                raise KeyError(job_id)
-            return dict(job)
+        job = self.db.get_job(job_id)
+        if job is None:
+            raise KeyError(job_id)
+        return job
 
     def list_jobs(self) -> list[dict[str, Any]]:
-        with self._lock:
-            return [dict(job) for job in self._jobs.values()]
+        return self.db.list_jobs()
+
+    def get_job_logs(self, job_id: str) -> list[str]:
+        if self.db.get_job(job_id) is None:
+            raise KeyError(job_id)
+        return self.db.get_job_logs(job_id)
 
     def workers_status(self) -> dict[str, Any]:
         status = {}
-        for key, data in self._workers.items():
+        for key, worker in self._workers.items():
             status[key] = {
-                "type": data["type"],
-                "architecture": data["architecture"],
-                "current_job": data["current_job"],
-                "queued": data["queue"].qsize(),
+                "type": worker.worker_type,
+                "architecture": worker.architecture,
+                "current_job": worker.current_job,
+                "queued": worker.queued,
+                "last_task": worker.last_task,
             }
         return status
 

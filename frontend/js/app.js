@@ -73,9 +73,22 @@ async function refreshHealth() {
 async function refreshWorkers() {
   try {
     const data = await getJson(`${API_BASE}/workers/status`);
-    workerStatus.innerHTML = Object.entries(data.workers)
-      .map(([name, worker]) => `<div>${name}: queued=${worker.queued}, current=${worker.current_job || 'idle'}</div>`)
+    const rows = Object.entries(data.workers)
+      .map(([name, worker]) => `
+        <tr>
+          <td>${name}</td>
+          <td>${worker.type || '-'}</td>
+          <td>${worker.queued ?? 0}</td>
+          <td>${worker.current_job || 'idle'}</td>
+        </tr>
+      `)
       .join('');
+    workerStatus.innerHTML = `
+      <table>
+        <thead><tr><th>Worker</th><th>Type</th><th>Queued</th><th>Current</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
   } catch (error) {
     workerStatus.textContent = `Worker status unavailable: ${error.message}`;
   }
