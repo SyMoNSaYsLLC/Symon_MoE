@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/api/embedded", tags=["embedded"])
 BITBAKE_WORKER = BitbakeWorker()
 LAYER_MANAGER = LayerManager()
 ARTIFACT_DIR = EMBEDDED_BUILD_ROOT / "deploy" / "images"
+SAFE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 class BuildRequest(BaseModel):
@@ -58,7 +60,11 @@ def list_artifacts() -> dict:
 
 @router.get("/artifacts/{name}")
 def download_artifact(name: str):
-    path = ARTIFACT_DIR / name
-    if not path.exists() or not path.is_file():
+    if not SAFE_NAME_PATTERN.fullmatch(name) or name in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid artifact name")
+
+    path = (ARTIFACT_DIR / name).resolve()
+    artifact_root = ARTIFACT_DIR.resolve()
+    if artifact_root not in path.parents or not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail="Artifact not found")
     return FileResponse(path=str(path), filename=name)
