@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +22,7 @@ from .storage import ensure_storage_contract, scan_models
 
 app = FastAPI(title="Symoneural Backend API", version="0.1.0")
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
+SAFE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 
 app.add_middleware(
     CORSMiddleware,
@@ -116,12 +118,18 @@ def download_artifact(artifact_type: str, filename: str):
     else:
         raise HTTPException(status_code=400, detail="artifact_type must be converted or migrated")
 
-    safe_name = Path(filename).name
-    artifact_path = (base_dir / safe_name).resolve()
-    if artifact_path.parent != base_dir.resolve() or not artifact_path.exists():
+    if not SAFE_NAME_PATTERN.fullmatch(filename) or filename in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid artifact filename")
+
+    artifact_path = None
+    for entry in base_dir.iterdir():
+        if entry.is_file() and entry.name == filename:
+            artifact_path = entry.resolve()
+            break
+    if artifact_path is None:
         raise HTTPException(status_code=404, detail="Artifact not found")
 
-    return FileResponse(path=str(artifact_path), filename=safe_name)
+    return FileResponse(path=str(artifact_path), filename=filename)
 
 
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

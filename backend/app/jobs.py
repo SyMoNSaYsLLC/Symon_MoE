@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import queue
+import re
 import subprocess
 import sys
 import threading
@@ -21,6 +22,8 @@ from .config import (
 )
 from .schemas import ConversionJobRequest, MigrationJobRequest
 from .storage import ensure_storage_contract, load_metadata, save_metadata
+
+SAFE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 @dataclass
@@ -68,14 +71,38 @@ class JobManager:
     def _now(self) -> datetime:
         return datetime.now(UTC)
 
+    def _validate_safe_name(self, value: str, field_name: str, expected_suffix: str | None = None) -> str:
+        if not SAFE_NAME_PATTERN.fullmatch(value):
+            raise ValueError(
+                f"{field_name} contains unsupported characters. Use only letters, numbers, ., _, -."
+            )
+        if value in {".", ".."}:
+            raise ValueError(f"{field_name} cannot be '.' or '..'.")
+        if expected_suffix and not value.endswith(expected_suffix):
+            raise ValueError(f"{field_name} must end with {expected_suffix}.")
+        return value
+
+    def _find_named_directory(self, base_dir: Path, directory_name: str) -> Path | None:
+        for entry in base_dir.iterdir():
+            if entry.is_dir() and entry.name == directory_name:
+                return entry.resolve()
+        return None
+
+    def _find_named_file(self, base_dir: Path, file_name: str) -> Path | None:
+        for entry in base_dir.iterdir():
+            if entry.is_file() and entry.name == file_name:
+                return entry.resolve()
+        return None
+
     def submit_conversion(self, request: ConversionJobRequest) -> dict[str, Any]:
         if request.architecture not in self._conversion_queues:
             raise ValueError(f"Unsupported architecture '{request.architecture}'.")
 
-        model_dir = RAW_MODELS_DIR / request.model_name
-        if not model_dir.exists() or not model_dir.is_dir():
+        model_name = self._validate_safe_name(request.model_name, "model_name")
+        model_dir = self._find_named_directory(RAW_MODELS_DIR, model_name)
+        if model_dir is None:
             raise ValueError(
-                f"Raw model folder '{request.model_name}' was not found under {RAW_MODELS_DIR}."
+                f"Raw model folder '{model_name}' was not found under {RAW_MODELS_DIR}."
             )
 
         if request.architecture == "diffusion":
@@ -88,16 +115,21 @@ class JobManager:
                         "or an explicit source_file value."
                     )
             else:
-                source_path = model_dir / source_file
-                if not source_path.exists():
+                safe_source_file = self._validate_safe_name(source_file, "source_file", ".safetensors")
+                source_path = self._find_named_file(model_dir, safe_source_file)
+                if source_path is None:
                     raise ValueError(
-                        f"source_file '{source_file}' does not exist in {model_dir}."
+                        f"source_file '{safe_source_file}' does not exist in {model_dir}."
                     )
         else:
             if not (model_dir / "config.json").exists():
                 raise ValueError(
                     "LLM conversion requires config.json in the selected model folder."
                 )
+
+        output_name = request.output_name
+        if output_name is not None:
+            self._validate_safe_name(output_name, "output_name", ".gguf")
 
         job_id = str(uuid.uuid4())
         now = self._now()
@@ -108,8 +140,12 @@ class JobManager:
             "created_at": now,
             "updated_at": now,
             "worker": f"conversion:{request.architecture}",
-            "request": request.model_dump(),
-            "logs": [f"Queued conversion job for {request.model_name}."],
+            "request": {
+                **request.model_dump(),
+                "model_name": model_name,
+                "model_dir": str(model_dir),
+            },
+            "logs": [f"Queued conversion job for {model_name}."],
             "result": None,
             "error": None,
         }
@@ -129,8 +165,29 @@ class JobManager:
                 f"{', '.join(combo)}. Supported 3->1 combinations: {supported_text}."
             )
 
-        artifact_names = [source.artifact_name for source in request.sources]
-        missing = [name for name in artifact_names if not (CONVERTED_MODELS_DIR / name).exists()]
+        target_name = self._validate_safe_name(request.target_name, "target_name", ".gguf")
+        safe_sources = []
+        for source in request.sources:
+            safe_sources.append(
+                {
+                    "architecture": source.architecture,
+                    "artifact_name": self._validate_safe_name(
+                        source.artifact_name,
+                        f"artifact_name ({source.architecture})",
+                        ".gguf",
+                    ),
+                }
+            )
+
+        artifact_names = [source["artifact_name"] for source in safe_sources]
+        source_artifact_paths = []
+        missing = []
+        for name in artifact_names:
+            artifact_path = self._find_named_file(CONVERTED_MODELS_DIR, name)
+            if artifact_path is None:
+                missing.append(name)
+            else:
+                source_artifact_paths.append(str(artifact_path))
         if missing:
             raise ValueError(
                 "Migration requires converted source artifacts in models/converted. "
@@ -146,7 +203,11 @@ class JobManager:
             "created_at": now,
             "updated_at": now,
             "worker": "migration:v1",
-            "request": request.model_dump(),
+            "request": {
+                "sources": safe_sources,
+                "source_artifact_paths": source_artifact_paths,
+                "target_name": target_name,
+            },
             "logs": ["Queued 3-architecture GGUF migration job."],
             "result": None,
             "error": None,
@@ -191,9 +252,12 @@ class JobManager:
         self._update_job(job_id, status="running")
 
         model_name = request["model_name"]
-        output_name = request.get("output_name") or f"{model_name}-{architecture}.gguf"
+        requested_output = request.get("output_name")
+        if requested_output:
+            requested_output = self._validate_safe_name(requested_output, "output_name", ".gguf")
+        output_name = requested_output or f"{job_id}-{model_name}-{architecture}.gguf"
         output_path = CONVERTED_MODELS_DIR / output_name
-        model_dir = RAW_MODELS_DIR / model_name
+        model_dir = Path(request["model_dir"]).resolve()
 
         cmd = [
             sys.executable,
@@ -206,7 +270,14 @@ class JobManager:
         if architecture == "diffusion":
             cmd.extend(["--engine", "diffusion"])
             if request.get("source_file"):
-                cmd.extend(["--src", request["source_file"]])
+                cmd.extend(
+                    [
+                        "--src",
+                        self._validate_safe_name(
+                            request["source_file"], "source_file", ".safetensors"
+                        ),
+                    ]
+                )
         else:
             cmd.extend(["--engine", "llm", "--outtype", request.get("outtype", "q8_0")])
 
@@ -266,7 +337,10 @@ class JobManager:
         request = job["request"]
         self._update_job(job_id, status="running")
 
-        target_name = request.get("target_name") or "symoneural-migrated.gguf"
+        requested_target = request.get("target_name")
+        if requested_target:
+            requested_target = self._validate_safe_name(requested_target, "target_name", ".gguf")
+        target_name = requested_target or f"migration-{job_id}.gguf"
         target_path = MIGRATED_MODELS_DIR / target_name
 
         try:
