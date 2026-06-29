@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Symoneural Platform</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Symoneural</h1>
+      <p>Machine-learning and neural-networking model operations</p>
+    </header>
+
+    <main class="layout">
+      <section class="panel onboarding">
+        <h2>Model Onboarding</h2>
+        <p>
+          Place model folders in <code>/home/runner/work/Symon_MoE/Symon_MoE/frontend/models/raw</code>.
+          Each model should be in its own folder.
+        </p>
+        <pre>
+frontend/models/
+  raw/
+    my-llm-model/
+      config.json
+      *.bin / *.safetensors
+    my-diffusion-model/
+      *.safetensors
+  converted/
+  migrated/
+metadata.json
+        </pre>
+        <p class="hint">
+          Conversion preflight checks require <strong>config.json</strong> for LLM architectures and
+          <strong>.safetensors</strong> for diffusion architectures.
+        </p>
+        <button id="scanModelsBtn">Scan Models</button>
+      </section>
+
+      <section class="panel">
+        <h2>Dashboard</h2>
+        <div id="healthStatus">API: checking...</div>
+        <div id="workerStatus"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Submit Conversion</h2>
+        <form id="conversionForm">
+          <label>Model folder name <input name="model_name" required /></label>
+          <label>
+            Architecture
+            <select name="architecture" required>
+              <option value="llama">llama</option>
+              <option value="qwen2">qwen2</option>
+              <option value="mistral">mistral</option>
+              <option value="diffusion">diffusion</option>
+            </select>
+          </label>
+          <label>Output type <input name="outtype" value="q8_0" /></label>
+          <label>Output file name <input name="output_name" placeholder="my-model.gguf" /></label>
+          <label>Diffusion source file (optional) <input name="source_file" placeholder="model.safetensors" /></label>
+          <button type="submit">Start Conversion</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Submit 3→1 GGUF Migration</h2>
+        <p>
+          Supported v1 source architecture set: <strong>llama + qwen2 + mistral</strong>. Each source must point
+          to an existing file in <code>frontend/models/converted</code>.
+        </p>
+        <form id="migrationForm">
+          <label>Llama artifact <input name="llama_artifact" required placeholder="llama.gguf" /></label>
+          <label>Qwen2 artifact <input name="qwen2_artifact" required placeholder="qwen2.gguf" /></label>
+          <label>Mistral artifact <input name="mistral_artifact" required placeholder="mistral.gguf" /></label>
+          <label>Target output <input name="target_name" value="symoneural-migrated.gguf" required /></label>
+          <button type="submit">Start Migration</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Jobs</h2>
+        <div id="jobs"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Model Inventory</h2>
+        <div id="models"></div>
+      </section>
+    </main>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>

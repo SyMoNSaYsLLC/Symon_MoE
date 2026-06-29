@@ -14,3 +14,8 @@ numpy
 # The convert.py tool in diff_engine/tools only needs:
 gguf>=0.10.0
 safetensors>=0.4.0
+
+# --- Backend API dependencies ---
+fastapi>=0.111.0
+uvicorn>=0.30.0
+pydantic>=2.7.0
