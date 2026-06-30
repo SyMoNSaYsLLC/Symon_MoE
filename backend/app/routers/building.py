@@ -10,7 +10,7 @@ from ..building.packager import Packager
 from ..building.release_artifacts import ReleaseArtifactCreator
 from ..building.runtime_builds import RuntimeBuildManager
 from ..building.scaffolder import RepoScaffolder
-from ..building.test_runner import TestRunner
+from ..building.runner import TestRunner
 
 router = APIRouter(prefix="/api/building", tags=["building"])
 
