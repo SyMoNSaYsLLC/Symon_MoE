@@ -15,6 +15,20 @@ DEFAULT_FILES: dict[str, str] = {
     "requirements.txt": "# Add dependencies here\n",
 }
 
+_SCAFFOLD_BASE_ROOTS: tuple[Path, ...] = (Path("/tmp"),)
+
+
+def _safe_scaffold_root(base_path: str) -> Path:
+    """Resolve *base_path* and ensure it falls under an allowed scaffold root."""
+    resolved = Path(base_path).resolve()
+    for root in _SCAFFOLD_BASE_ROOTS:
+        if str(resolved).startswith(str(root.resolve())):
+            return resolved
+    raise ValueError(
+        f"base_path {base_path!r} is not within an allowed scaffold root. "
+        f"Allowed roots: {[str(r) for r in _SCAFFOLD_BASE_ROOTS]}"
+    )
+
 
 class RepoScaffolder:
     """Scaffold new repository or module directory structures."""
@@ -36,13 +50,27 @@ class RepoScaffolder:
         created_files: list[str] = []
 
         if not dry_run and base_path:
-            root = Path(base_path) / name
+            try:
+                safe_base = _safe_scaffold_root(base_path)
+            except ValueError as exc:
+                return {
+                    "id": job_id,
+                    "status": "error",
+                    "error": str(exc),
+                    "created_at": now,
+                    "updated_at": now,
+                }
+            root = safe_base / name
             for d in dirs:
-                target = root / d
+                target = (root / d).resolve()
+                if not str(target).startswith(str(root.resolve())):
+                    continue  # skip any dir that would escape the scaffold root
                 target.mkdir(parents=True, exist_ok=True)
                 created_dirs.append(str(target))
             for fname, content in files.items():
-                fpath = root / fname
+                fpath = (root / fname).resolve()
+                if not str(fpath).startswith(str(root.resolve())):
+                    continue
                 fpath.parent.mkdir(parents=True, exist_ok=True)
                 fpath.write_text(content)
                 created_files.append(str(fpath))

@@ -10,11 +10,19 @@ from typing import Any
 _RUNS: dict[str, dict[str, Any]] = {}
 
 
+def _safe_child_path(root: Path, relative: str) -> Path:
+    """Resolve *relative* within *root* and raise ValueError on path traversal."""
+    resolved = (root / relative).resolve()
+    if not str(resolved).startswith(str(root.resolve())):
+        raise ValueError(f"test_path must be within the repository root: {relative!r}")
+    return resolved
+
+
 class TestRunner:
     """Run the repository test suite and record results."""
 
     def __init__(self, repo_root: Path | None = None) -> None:
-        self._root = repo_root or Path(__file__).resolve().parents[4]
+        self._root = (repo_root or Path(__file__).resolve().parents[4]).resolve()
 
     def run(
         self,
@@ -23,13 +31,24 @@ class TestRunner:
     ) -> dict[str, Any]:
         run_id = str(uuid.uuid4())
         now = datetime.now(UTC).isoformat()
-        target = str(self._root / test_path)
-        cmd = ["python", "-m", "pytest", target, "--tb=short", "-q"] + (extra_args or [])
+
+        try:
+            target = _safe_child_path(self._root, test_path)
+        except ValueError as exc:
+            return {
+                "id": run_id,
+                "status": "error",
+                "error": str(exc),
+                "created_at": now,
+                "updated_at": now,
+            }
+
+        cmd = ["python", "-m", "pytest", str(target), "--tb=short", "-q"] + (extra_args or [])
 
         record: dict[str, Any] = {
             "id": run_id,
             "command": cmd,
-            "test_path": target,
+            "test_path": str(target),
             "status": "running",
             "return_code": None,
             "stdout": "",

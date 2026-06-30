@@ -46,9 +46,10 @@ class ReleaseArtifactCreator:
         if release is None:
             return None
         entry: dict[str, str] = {"name": name, "path": path, "type": artifact_type}
-        if Path(path).exists():
+        artifact_path = Path(path).resolve()
+        if artifact_path.is_file():
             import hashlib
-            sha256 = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+            sha256 = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
             entry["sha256"] = sha256
             release["checksums"][name] = sha256
         release["artifacts"].append(entry)
