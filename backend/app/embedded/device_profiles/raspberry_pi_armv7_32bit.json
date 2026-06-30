@@ -1,0 +1,12 @@
+{
+  "name": "raspberry_pi_armv7_32bit",
+  "arch": "armv7",
+  "machine": "raspberrypi2",
+  "toolchain": "gcc-arm-linux-gnueabihf",
+  "artifact_format": "wic.gz",
+  "runtime_targets": [
+    "gguf",
+    "onnx",
+    "tensorflow-keras"
+  ]
+}

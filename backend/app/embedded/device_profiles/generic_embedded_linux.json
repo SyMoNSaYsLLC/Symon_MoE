@@ -1,0 +1,13 @@
+{
+  "name": "generic_embedded_linux",
+  "arch": "x86_64",
+  "machine": "genericx86-64",
+  "toolchain": "gcc",
+  "artifact_format": "ext4.gz",
+  "runtime_targets": [
+    "gguf",
+    "onnx",
+    "openvino",
+    "pytorch"
+  ]
+}

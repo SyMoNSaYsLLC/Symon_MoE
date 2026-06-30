@@ -1,0 +1,11 @@
+{
+  "name": "generic_openwrt",
+  "arch": "mips64",
+  "machine": "openwrt-generic",
+  "toolchain": "openwrt-sdk",
+  "artifact_format": "sysupgrade.bin",
+  "runtime_targets": [
+    "onnx",
+    "tensorflow-keras"
+  ]
+}

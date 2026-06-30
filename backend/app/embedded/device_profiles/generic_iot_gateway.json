@@ -1,0 +1,12 @@
+{
+  "name": "generic_iot_gateway",
+  "arch": "aarch64",
+  "machine": "iot-gateway-aarch64",
+  "toolchain": "gcc-aarch64-linux-gnu",
+  "artifact_format": "squashfs",
+  "runtime_targets": [
+    "onnx",
+    "tensorflow-keras",
+    "python-sklearn"
+  ]
+}
