@@ -1,0 +1,11 @@
+{
+  "name": "antminer_linux",
+  "arch": "armv7",
+  "machine": "antminer-s19",
+  "toolchain": "bitmain-sdk",
+  "artifact_format": "tar.gz",
+  "runtime_targets": [
+    "gguf",
+    "onnx"
+  ]
+}

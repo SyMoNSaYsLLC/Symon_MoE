@@ -26,6 +26,7 @@ from .routers import (
     image_gen,
     iptv,
     llm_ops,
+    model_runtime,
     mining,
     tensor_lab,
     terminal,
@@ -58,6 +59,7 @@ for _router in (
     database.router,
     mining.router,
     embedded.router,
+    model_runtime.router,
     terminal.router,
 ):
     app.include_router(_router)
