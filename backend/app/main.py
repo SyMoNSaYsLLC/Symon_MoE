@@ -17,11 +17,24 @@ from .config import (
     SUPPORTED_MIGRATION_COMBINATIONS,
 )
 from .jobs import JOB_MANAGER
-from .routers import calculator, chat, code_assist, image_gen, iptv, tensor_lab, video_gen
+from .routers import (
+    calculator,
+    chat,
+    code_assist,
+    database,
+    embedded,
+    image_gen,
+    iptv,
+    llm_ops,
+    mining,
+    tensor_lab,
+    terminal,
+    video_gen,
+)
 from .schemas import ConversionJobRequest, MigrationJobRequest
 from .storage import ensure_storage_contract, scan_models
 
-app = FastAPI(title="Symoneural Backend API", version="0.1.0")
+app = FastAPI(title="Symoneural Backend API", version="0.2.0")
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 SAFE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -33,8 +46,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register new feature routers
-for _router in (chat.router, code_assist.router, image_gen.router, video_gen.router, calculator.router, iptv.router, tensor_lab.router):
+for _router in (
+    chat.router,
+    code_assist.router,
+    image_gen.router,
+    video_gen.router,
+    calculator.router,
+    iptv.router,
+    tensor_lab.router,
+    llm_ops.router,
+    database.router,
+    mining.router,
+    embedded.router,
+    terminal.router,
+):
     app.include_router(_router)
 
 
@@ -90,10 +115,10 @@ def get_job(job_id: str) -> dict:
 @app.get("/api/jobs/{job_id}/logs")
 def get_job_logs(job_id: str) -> dict:
     try:
-        job = JOB_MANAGER.get_job(job_id)
+        logs = JOB_MANAGER.get_job_logs(job_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found") from exc
-    return {"job_id": job_id, "logs": job.get("logs", [])}
+    return {"job_id": job_id, "logs": logs}
 
 
 @app.get("/api/workers/status")

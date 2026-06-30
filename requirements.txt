@@ -20,6 +20,10 @@ fastapi>=0.111.0
 uvicorn>=0.30.0
 pydantic>=2.7.0
 httpx>=0.27.0
+aiosqlite>=0.20.0
+ptyprocess>=0.7.0
+psutil>=5.9.8
+websockets>=12.0
 
 # --- Calculator app ---
 sympy>=1.12

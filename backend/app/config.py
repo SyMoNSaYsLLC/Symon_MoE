@@ -26,6 +26,15 @@ SUPPORTED_MIGRATION_COMBINATIONS = (
     ("llama", "qwen2", "mistral"),
 )
 
+DB_PATH = Path(os.getenv("DB_PATH", str(MODELS_ROOT / "symoneural.db"))).resolve()
+MINING_ENABLED = os.getenv("MINING_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+EMBEDDED_BUILD_ROOT = Path(
+    os.getenv("EMBEDDED_BUILD_ROOT", str(REPO_ROOT / "embedded" / "workspace"))
+).resolve()
+TERMINAL_SHELL = os.getenv("TERMINAL_SHELL", "/bin/bash")
+HARDWARE_THROTTLE_CPU_LIMIT = float(os.getenv("HARDWARE_THROTTLE_CPU_LIMIT", "95"))
+HARDWARE_THROTTLE_GPU_LIMIT = float(os.getenv("HARDWARE_THROTTLE_GPU_LIMIT", "95"))
+
 SCOPE_DECISIONS = {
     "migration_v1_architectures": ["llama", "qwen2", "mistral"],
     "frontend_location": "inside_this_repository:/frontend",

@@ -61,6 +61,10 @@ Full reference documentation lives under `docs/`:
 | [`docs/helpers-rust.md`](docs/helpers-rust.md) | Rust crate API + CLI reference |
 | [`docs/helpers-java.md`](docs/helpers-java.md) | Java class API + CLI reference |
 | [`docs/tensor-guide.md`](docs/tensor-guide.md) | Tensor concepts, dtypes, LoRA, and GGUF guide |
+| [`docs/mining.md`](docs/mining.md) | Mining setup and APIs |
+| [`docs/embedded.md`](docs/embedded.md) | Embedded build setup and workflow |
+| [`docs/terminal.md`](docs/terminal.md) | Web terminal usage and security |
+| [`docs/workers.md`](docs/workers.md) | Worker queues and throttling |
 
 ## Man Pages
 
@@ -142,6 +146,10 @@ provides navigation to:
 | Text to Video | `/apps/text_to_video.html` | CogVideoX / ModelScope video generation |
 | IPTV | `/apps/iptv.html` | M3U playlist loader + HLS player |
 | Tensor Lab | `/apps/tensor_lab.html` | Tensor creation/ops, model param customisation, API-key chat |
+| Mining | `/apps/mining.html` | Miner pool discovery, controls, and status dashboard |
+| Embedded | `/apps/embedded.html` | Yocto/PetaLinux build queue and layer management |
+| LLM Ops | `/apps/llm_ops.html` | LLM create/update job queue UI |
+| Terminal | `/apps/terminal.html` | Browser VT100 terminal over WebSocket |
 
 ## Helper Libraries
 
@@ -264,3 +272,12 @@ Recommended rollout after API/UI stability:
 12. Documentation and man pages (docs/, man/man1/) ✅
 13. Tensor Lab: frontend app + backend router with API-key support ✅
 
+
+
+## Expansion Environment Variables
+
+- `DB_PATH` (default: `frontend/models/symoneural.db`)
+- `MINING_ENABLED`
+- `EMBEDDED_BUILD_ROOT`
+- `TERMINAL_SHELL`
+- `HARDWARE_THROTTLE_CPU_LIMIT` / `HARDWARE_THROTTLE_GPU_LIMIT`

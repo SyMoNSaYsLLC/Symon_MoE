@@ -501,3 +501,69 @@
     height: auto;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Expansion apps
+--------------------------------------------------------------------------- */
+
+.app-top-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #1e2a3a;
+  background: #0f1d2e;
+}
+
+.app-top-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.82rem;
+}
+
+.app-top-nav a:hover {
+  color: var(--accent);
+}
+
+.mining-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.6rem;
+}
+
+.mining-card {
+  border: 1px solid #253246;
+  border-radius: 8px;
+  background: #0f1723;
+  padding: 0.65rem;
+}
+
+.mining-card code {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  color: var(--accent);
+}
+
+.build-log {
+  max-height: 280px;
+  overflow: auto;
+  background: #0f1723;
+  border: 1px solid #253246;
+  border-radius: 8px;
+  padding: 0.65rem;
+}
+
+.terminal-panel {
+  min-height: calc(100vh - 140px);
+}
+
+#terminal {
+  width: 100%;
+  min-height: calc(100vh - 220px);
+  border: 1px solid #253246;
+  border-radius: 8px;
+  background: #000;
+  padding: 0.25rem;
+}
