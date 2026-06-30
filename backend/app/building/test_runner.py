@@ -9,13 +9,30 @@ from typing import Any
 
 _RUNS: dict[str, dict[str, Any]] = {}
 
+# Allowlist of pytest argument prefixes/values that the API may pass through.
+_PYTEST_ARG_ALLOWLIST = frozenset({
+    "-v", "-q", "-s", "--tb=short", "--tb=long", "--tb=no",
+    "--no-header", "-x", "--maxfail=1", "--maxfail=2", "--maxfail=3",
+    "-k", "--collect-only",
+})
 
-def _safe_child_path(root: Path, relative: str) -> Path:
-    """Resolve *relative* within *root* and raise ValueError on path traversal."""
-    resolved = (root / relative).resolve()
-    if not str(resolved).startswith(str(root.resolve())):
-        raise ValueError(f"test_path must be within the repository root: {relative!r}")
-    return resolved
+
+def _validate_extra_args(args: list[str]) -> list[str]:
+    """Return only safe pytest args; raise ValueError for any disallowed entry."""
+    safe: list[str] = []
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in _PYTEST_ARG_ALLOWLIST:
+            safe.append(arg)
+        elif arg == "-k" and i + 1 < len(args):
+            safe.append(arg)
+            i += 1
+            safe.append(args[i])
+        else:
+            raise ValueError(f"Disallowed pytest argument: {arg!r}")
+        i += 1
+    return safe
 
 
 class TestRunner:
@@ -24,16 +41,15 @@ class TestRunner:
     def __init__(self, repo_root: Path | None = None) -> None:
         self._root = (repo_root or Path(__file__).resolve().parents[4]).resolve()
 
-    def run(
-        self,
-        test_path: str = "tests",
-        extra_args: list[str] | None = None,
-    ) -> dict[str, Any]:
+    def run(self, extra_args: list[str] | None = None) -> dict[str, Any]:
         run_id = str(uuid.uuid4())
         now = datetime.now(UTC).isoformat()
 
+        # The test path is always the fixed repo-local tests directory.
+        test_dir = self._root / "tests"
+
         try:
-            target = _safe_child_path(self._root, test_path)
+            safe_extra = _validate_extra_args(extra_args or [])
         except ValueError as exc:
             return {
                 "id": run_id,
@@ -43,12 +59,12 @@ class TestRunner:
                 "updated_at": now,
             }
 
-        cmd = ["python", "-m", "pytest", str(target), "--tb=short", "-q"] + (extra_args or [])
+        cmd = ["python", "-m", "pytest", "tests", "--tb=short", "-q"] + safe_extra
 
         record: dict[str, Any] = {
             "id": run_id,
             "command": cmd,
-            "test_path": str(target),
+            "test_path": str(test_dir),
             "status": "running",
             "return_code": None,
             "stdout": "",

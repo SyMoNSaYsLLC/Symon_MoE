@@ -1,6 +1,7 @@
 """Release artifact creation for the building layer."""
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,9 +11,15 @@ _RELEASES: dict[str, dict[str, Any]] = {}
 
 RELEASE_TYPES = ("stable", "rc", "nightly", "hotfix")
 
+# Artifacts may only be checksummed if they reside under this root.
+_DIST_ROOT: Path = Path(__file__).resolve().parents[4] / "dist"
+
 
 class ReleaseArtifactCreator:
     """Assemble and register release artifacts."""
+
+    def __init__(self, dist_root: Path | None = None) -> None:
+        self._dist = (dist_root or _DIST_ROOT).resolve()
 
     def create(
         self,
@@ -42,16 +49,23 @@ class ReleaseArtifactCreator:
     def attach_artifact(
         self, release_id: str, name: str, path: str, artifact_type: str = "binary"
     ) -> dict[str, Any] | None:
+        """Register an artifact by name/type. SHA-256 is computed only for files
+        that already exist inside the internal dist directory (not arbitrary paths)."""
         release = _RELEASES.get(release_id)
         if release is None:
             return None
         entry: dict[str, str] = {"name": name, "path": path, "type": artifact_type}
-        artifact_path = Path(path).resolve()
-        if artifact_path.is_file():
-            import hashlib
-            sha256 = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+
+        # Only read and hash files that are within the internal dist root.
+        candidate = (self._dist / name).resolve()
+        if (
+            str(candidate).startswith(str(self._dist))
+            and candidate.is_file()
+        ):
+            sha256 = hashlib.sha256(candidate.read_bytes()).hexdigest()
             entry["sha256"] = sha256
             release["checksums"][name] = sha256
+
         release["artifacts"].append(entry)
         release["updated_at"] = datetime.now(UTC).isoformat()
         return release

@@ -28,9 +28,7 @@ _release_creator = ReleaseArtifactCreator()
 class ScaffoldRequest(BaseModel):
     name: str = Field(..., min_length=1)
     description: str = ""
-    base_path: str | None = None
     extra_dirs: list[str] = Field(default_factory=list)
-    dry_run: bool = True
 
 
 @router.post("/scaffold")
@@ -38,9 +36,7 @@ def scaffold_repo(request: ScaffoldRequest) -> dict:
     return _scaffolder.scaffold(
         request.name,
         request.description,
-        request.base_path,
         request.extra_dirs or None,
-        request.dry_run,
     )
 
 
@@ -81,7 +77,7 @@ def submit_code_gen(request: CodeGenSubmitRequest) -> dict:
             request.target, request.template, request.variables, request.output_path
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail="Invalid code-gen target") from exc
 
 
 @router.get("/code-gen")
@@ -116,13 +112,12 @@ def fail_code_gen(job_id: str, request: CodeGenFailRequest) -> dict:
 # ── Test Runner ───────────────────────────────────────────────────────────────
 
 class TestRunRequest(BaseModel):
-    test_path: str = "tests"
     extra_args: list[str] = Field(default_factory=list)
 
 
 @router.post("/tests/run")
 def run_tests(request: TestRunRequest) -> dict:
-    return _test_runner.run(request.test_path, request.extra_args or None)
+    return _test_runner.run(request.extra_args or None)
 
 
 @router.get("/tests/runs")
@@ -142,9 +137,7 @@ def get_test_run(run_id: str) -> dict:
 
 class PackageCreateRequest(BaseModel):
     package_name: str = Field(..., min_length=1)
-    source_dir: str = Field(..., min_length=1)
     fmt: str = "wheel"
-    output_dir: str | None = None
     dry_run: bool = True
 
 
@@ -153,13 +146,11 @@ def create_package(request: PackageCreateRequest) -> dict:
     try:
         return _packager.create(
             request.package_name,
-            request.source_dir,
             request.fmt,
-            request.output_dir,
             request.dry_run,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail="Invalid package format") from exc
 
 
 @router.get("/packages")
@@ -194,7 +185,7 @@ def submit_runtime_build(request: RuntimeBuildSubmitRequest) -> dict:
             request.options or None,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail="Invalid runtime type") from exc
 
 
 @router.get("/runtime-builds")
@@ -276,7 +267,7 @@ def create_release(request: ReleaseCreateRequest) -> dict:
     try:
         return _release_creator.create(request.version, request.release_type, notes=request.notes)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail="Invalid release type") from exc
 
 
 @router.get("/releases")
