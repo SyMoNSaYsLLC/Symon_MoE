@@ -36,6 +36,8 @@ def _validate_extra_args(args: list[str]) -> list[str]:
 class TestRunner:
     """Run the repository test suite and record results."""
 
+    __test__ = False
+
     def __init__(self, repo_root: Path | None = None) -> None:
         self._root = (repo_root or Path(__file__).resolve().parents[4]).resolve()
 
