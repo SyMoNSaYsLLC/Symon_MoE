@@ -3,7 +3,7 @@
   "arch": "aarch64",
   "machine": "raspberrypi4-64",
   "toolchain": "gcc-aarch64-linux-gnu",
-  "artifact_format": "wic.bz2",
+  "artifact_format": "wic.gz",
   "runtime_targets": [
     "gguf",
     "onnx",

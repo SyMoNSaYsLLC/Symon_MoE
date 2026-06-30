@@ -6,7 +6,7 @@
   "artifact_format": "squashfs",
   "runtime_targets": [
     "onnx",
-    "tensorflow-lite",
+    "tensorflow-keras",
     "python-sklearn"
   ]
 }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ..embedded.device_profiles.registry import list_profiles
 from .converter_router import select_converter
 from .schemas import CapabilitiesResponse, RouteRequest, RuntimeDecision
 from .task_router import pipeline_for_task
@@ -31,12 +32,10 @@ def route_runtime(request: RouteRequest) -> RuntimeDecision:
     packaging = None
     notes: list[str] = []
     if request.target_device_profile:
+        if request.target_device_profile not in set(list_profiles()):
+            raise ValueError(f"Unknown device profile: {request.target_device_profile}")
         packaging = "embedded-package"
         notes.append("Device profile controls deployment packaging")
-    notes.append("Task decides pipeline")
-    notes.append("Files decide loader/converter")
-    notes.append("Runtime decides execution")
-    notes.append("Workers perform actual work")
 
     return RuntimeDecision(
         task=request.task,

@@ -7,6 +7,6 @@
   "runtime_targets": [
     "gguf",
     "onnx",
-    "tensorflow-lite"
+    "tensorflow-keras"
   ]
 }

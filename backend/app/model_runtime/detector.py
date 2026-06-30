@@ -9,11 +9,6 @@ from .schemas import DetectionMatch, InspectResponse
 def _normalize_files(path: str, files: list[str]) -> list[str]:
     if files:
         return [entry.lower() for entry in files]
-    p = Path(path)
-    if p.is_file():
-        return [p.name.lower()]
-    if p.is_dir():
-        return [entry.name.lower() for entry in p.iterdir() if entry.is_file()]
     return [Path(path).name.lower()]
 
 
@@ -37,24 +32,53 @@ def _register_defaults() -> None:
 
         return detector
 
-    def by_token(tokens: tuple[str, ...], reason: str):
+    def by_token(tokens: tuple[str, ...], reason: str, confidence: float = 0.8):
         def detector(_path: str, files: list[str]):
             if _contains_any(files, tokens):
-                return (0.8, [reason])
+                return (confidence, [reason])
             return None
 
         return detector
 
     DETECTOR_REGISTRY.register("gguf", by_ext((".gguf",), "Found GGUF artifact"))
-    DETECTOR_REGISTRY.register("transformers", by_token(("config.json", "tokenizer.json", "model.safetensors"), "Found Transformers metadata"))
-    DETECTOR_REGISTRY.register("diffusers", by_token(("model_index.json", "unet", "vae", "scheduler"), "Found Diffusers pipeline files"))
-    DETECTOR_REGISTRY.register("peft", by_token(("adapter_config.json", "adapter_model", "lora"), "Found PEFT/LoRA adapter files"))
-    DETECTOR_REGISTRY.register("sentence-transformers", by_token(("sentence_bert_config", "modules.json", "sentence-transformers"), "Found sentence-transformers files"))
+    DETECTOR_REGISTRY.register(
+        "transformers",
+        by_token(
+            ("config.json", "tokenizer.json", "model.safetensors"),
+            "Found Transformers metadata",
+            confidence=0.99,
+        ),
+    )
+    DETECTOR_REGISTRY.register(
+        "diffusers",
+        by_token(
+            ("model_index.json", "unet", "vae", "scheduler"),
+            "Found Diffusers pipeline files",
+        ),
+    )
+    DETECTOR_REGISTRY.register(
+        "peft",
+        by_token(("adapter_config.json", "adapter_model", "lora"), "Found PEFT/LoRA adapter files"),
+    )
+    DETECTOR_REGISTRY.register(
+        "sentence-transformers",
+        by_token(
+            ("sentence_bert_config", "modules.json", "sentence-transformers"),
+            "Found sentence-transformers files",
+        ),
+    )
     DETECTOR_REGISTRY.register("onnx", by_ext((".onnx",), "Found ONNX graph"))
     DETECTOR_REGISTRY.register("coreml", by_ext((".mlmodel", ".mlpackage"), "Found CoreML model"))
     DETECTOR_REGISTRY.register("openvino", by_token(("openvino", ".xml", ".bin"), "Found OpenVINO IR assets"))
     DETECTOR_REGISTRY.register("mlx", by_token(("mlx", "weights.npz"), "Found MLX model files"))
-    DETECTOR_REGISTRY.register("tensorflow-keras", by_ext((".pb", ".h5", ".keras", ".ckpt"), "Found TensorFlow/Keras artifact"))
+    DETECTOR_REGISTRY.register(
+        "tensorflow-keras",
+        by_token(
+            (".pb", ".h5", ".keras", ".ckpt.index", ".ckpt.data-"),
+            "Found TensorFlow/Keras artifact",
+            confidence=0.93,
+        ),
+    )
     DETECTOR_REGISTRY.register("pytorch-checkpoint", by_ext((".pt", ".pth", ".ckpt"), "Found PyTorch checkpoint"))
     DETECTOR_REGISTRY.register("safetensors", by_ext((".safetensors",), "Found safetensors checkpoint"))
     DETECTOR_REGISTRY.register("sklearn-joblib-pickle", by_ext((".joblib", ".pkl", ".pickle"), "Found scikit-learn serialized artifact"))

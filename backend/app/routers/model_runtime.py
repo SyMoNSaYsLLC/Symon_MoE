@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from ..model_runtime.detector import inspect_model
 from ..model_runtime.runtime_router import route_runtime, runtime_capabilities
@@ -17,7 +17,10 @@ def inspect(request: InspectRequest) -> InspectResponse:
 
 @router.post("/route", response_model=RuntimeDecision)
 def route(request: RouteRequest) -> RuntimeDecision:
-    return route_runtime(request)
+    try:
+        return route_runtime(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/capabilities")

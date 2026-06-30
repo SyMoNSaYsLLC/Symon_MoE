@@ -6,6 +6,6 @@
   "artifact_format": "sysupgrade.bin",
   "runtime_targets": [
     "onnx",
-    "tensorflow-lite"
+    "tensorflow-keras"
   ]
 }
