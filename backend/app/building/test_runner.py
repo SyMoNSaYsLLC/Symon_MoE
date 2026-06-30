@@ -9,29 +9,27 @@ from typing import Any
 
 _RUNS: dict[str, dict[str, Any]] = {}
 
-# Allowlist of pytest argument prefixes/values that the API may pass through.
-_PYTEST_ARG_ALLOWLIST = frozenset({
+# Allowlist of safe pytest flags. Values are the canonical constant strings
+# used in commands — user input is only used as a lookup key, never as a value.
+_SAFE_FLAGS: dict[str, str] = {f: f for f in (
     "-v", "-q", "-s", "--tb=short", "--tb=long", "--tb=no",
     "--no-header", "-x", "--maxfail=1", "--maxfail=2", "--maxfail=3",
-    "-k", "--collect-only",
-})
+    "--collect-only",
+)}
 
 
 def _validate_extra_args(args: list[str]) -> list[str]:
-    """Return only safe pytest args; raise ValueError for any disallowed entry."""
+    """Return only canonical safe pytest flags from the allowlist.
+
+    User input is used only as a dict key; the actual command argument is the
+    constant value from *_SAFE_FLAGS*, breaking the user-input taint chain.
+    """
     safe: list[str] = []
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        if arg in _PYTEST_ARG_ALLOWLIST:
-            safe.append(arg)
-        elif arg == "-k" and i + 1 < len(args):
-            safe.append(arg)
-            i += 1
-            safe.append(args[i])
-        else:
+    for arg in args:
+        canonical = _SAFE_FLAGS.get(arg)
+        if canonical is None:
             raise ValueError(f"Disallowed pytest argument: {arg!r}")
-        i += 1
+        safe.append(canonical)
     return safe
 
 

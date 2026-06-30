@@ -117,7 +117,10 @@ class TestRunRequest(BaseModel):
 
 @router.post("/tests/run")
 def run_tests(request: TestRunRequest) -> dict:
-    return _test_runner.run(request.extra_args or None)
+    result = _test_runner.run(request.extra_args or None)
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail="Invalid test arguments")
+    return result
 
 
 @router.get("/tests/runs")
