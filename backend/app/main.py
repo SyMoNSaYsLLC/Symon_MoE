@@ -18,6 +18,7 @@ from .config import (
 )
 from .jobs import JOB_MANAGER
 from .routers import (
+    building,
     calculator,
     chat,
     code_assist,
@@ -28,6 +29,7 @@ from .routers import (
     llm_ops,
     model_runtime,
     mining,
+    planning,
     tensor_lab,
     terminal,
     video_gen,
@@ -61,6 +63,8 @@ for _router in (
     embedded.router,
     model_runtime.router,
     terminal.router,
+    planning.router,
+    building.router,
 ):
     app.include_router(_router)
 

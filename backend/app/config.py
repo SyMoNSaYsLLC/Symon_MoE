@@ -35,6 +35,13 @@ TERMINAL_SHELL = os.getenv("TERMINAL_SHELL", "/bin/bash")
 HARDWARE_THROTTLE_CPU_LIMIT = float(os.getenv("HARDWARE_THROTTLE_CPU_LIMIT", "95"))
 HARDWARE_THROTTLE_GPU_LIMIT = float(os.getenv("HARDWARE_THROTTLE_GPU_LIMIT", "95"))
 
+PLANNING_DATA_DIR = Path(
+    os.getenv("SYMON_PLANNING_DIR", str(MODELS_ROOT / "planning"))
+).resolve()
+BUILDING_OUTPUT_DIR = Path(
+    os.getenv("SYMON_BUILDING_DIR", str(REPO_ROOT / "dist"))
+).resolve()
+
 SCOPE_DECISIONS = {
     "migration_v1_architectures": ["llama", "qwen2", "mistral"],
     "frontend_location": "inside_this_repository:/frontend",

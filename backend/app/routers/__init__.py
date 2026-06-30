@@ -1,4 +1,5 @@
 from . import (
+    building,
     calculator,
     chat,
     code_assist,
@@ -9,12 +10,14 @@ from . import (
     llm_ops,
     model_runtime,
     mining,
+    planning,
     tensor_lab,
     terminal,
     video_gen,
 )
 
 __all__ = [
+    "building",
     "calculator",
     "chat",
     "code_assist",
@@ -25,6 +28,7 @@ __all__ = [
     "llm_ops",
     "model_runtime",
     "mining",
+    "planning",
     "tensor_lab",
     "terminal",
     "video_gen",
