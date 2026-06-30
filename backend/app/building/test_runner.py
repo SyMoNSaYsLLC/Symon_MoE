@@ -57,7 +57,7 @@ class TestRunner:
                 "updated_at": now,
             }
 
-        cmd = ["python", "-m", "pytest", "tests", "--tb=short", "-q"] + safe_extra
+        cmd = ["python", "-m", "pytest", str(test_dir), "--tb=short", "-q"] + safe_extra
 
         record: dict[str, Any] = {
             "id": run_id,

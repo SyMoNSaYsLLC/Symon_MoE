@@ -120,7 +120,15 @@ def run_tests(request: TestRunRequest) -> dict:
     result = _test_runner.run(request.extra_args or None)
     if result.get("status") == "error":
         raise HTTPException(status_code=400, detail="Invalid test arguments")
-    return result
+    # Return only metadata; retrieve full output (stdout/stderr) via GET /tests/runs/{run_id}
+    return {
+        "id": result.get("id"),
+        "status": result.get("status"),
+        "return_code": result.get("return_code"),
+        "test_path": result.get("test_path"),
+        "created_at": result.get("created_at"),
+        "updated_at": result.get("updated_at"),
+    }
 
 
 @router.get("/tests/runs")
