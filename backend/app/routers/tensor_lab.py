@@ -239,7 +239,7 @@ class TensorChatRequest(BaseModel):
     num_predict: int | None = 512
     num_ctx: int | None = 2048
     stream: bool = True
-    # Connection overrides — api_key is passed as Authorization: ******
+    # Connection overrides — api_key is forwarded as Authorization: ******
     base_url: str | None = None
     api_key: str | None = None
 
@@ -257,11 +257,15 @@ async def tensor_chat(request: TensorChatRequest):
     - All standard Ollama sampling parameters (temperature, top_p, top_k,
       repeat_penalty, num_predict, num_ctx).
     """
-    base_url = (request.base_url or DEFAULT_OLLAMA_BASE_URL).rstrip("/")
+    raw_base_url = (request.base_url or DEFAULT_OLLAMA_BASE_URL).rstrip("/")
+    raw_base_url_lower = raw_base_url.lower()
+    if not (raw_base_url_lower.startswith("http://") or raw_base_url_lower.startswith("https://")):
+        raise HTTPException(status_code=400, detail="base_url must use http:// or https://")
+    base_url = raw_base_url
 
     headers: dict[str, str] = {"Content-Type": "application/json"}
     if request.api_key:
-        headers["Authorization"] = f"******"
+        headers["Authorization"] = f"Bearer {request.api_key}"
 
     options: dict = {}
     if request.temperature is not None:
