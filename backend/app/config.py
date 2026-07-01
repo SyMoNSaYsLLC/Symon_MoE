@@ -32,6 +32,8 @@ EMBEDDED_BUILD_ROOT = Path(
     os.getenv("EMBEDDED_BUILD_ROOT", str(REPO_ROOT / "embedded" / "workspace"))
 ).resolve()
 TERMINAL_SHELL = os.getenv("TERMINAL_SHELL", "/bin/bash")
+TERMINAL_ENABLED = os.getenv("TERMINAL_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+TERMINAL_TOKEN = os.getenv("TERMINAL_TOKEN", "")
 HARDWARE_THROTTLE_CPU_LIMIT = float(os.getenv("HARDWARE_THROTTLE_CPU_LIMIT", "95"))
 HARDWARE_THROTTLE_GPU_LIMIT = float(os.getenv("HARDWARE_THROTTLE_GPU_LIMIT", "95"))
 

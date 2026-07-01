@@ -68,6 +68,9 @@ class ParseFromTextRequest(BaseModel):
 @router.post("/parse")
 async def parse_m3u_url(request: ParseRequest) -> dict:
     """Fetch and parse an M3U playlist from a URL, returning a structured channel list."""
+    parsed_url = request.url.lower()
+    if not (parsed_url.startswith("http://") or parsed_url.startswith("https://")):
+        raise HTTPException(status_code=400, detail="Only http:// and https:// URLs are supported")
     try:
         async with httpx.AsyncClient(
             timeout=30.0,

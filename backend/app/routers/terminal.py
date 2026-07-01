@@ -5,14 +5,25 @@ import os
 import pty
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketState
 
-from ..config import TERMINAL_SHELL
+from ..config import TERMINAL_ENABLED, TERMINAL_SHELL, TERMINAL_TOKEN
 
 router = APIRouter(tags=["terminal"])
 
 
 @router.websocket("/api/terminal/ws")
 async def terminal_ws(websocket: WebSocket) -> None:
+    if not TERMINAL_ENABLED:
+        await websocket.close(code=1008, reason="Terminal is disabled")
+        return
+
+    if TERMINAL_TOKEN:
+        token = websocket.query_params.get("token", "")
+        if token != TERMINAL_TOKEN:
+            await websocket.close(code=1008, reason="Unauthorized")
+            return
+
     await websocket.accept()
 
     master_fd, slave_fd = pty.openpty()

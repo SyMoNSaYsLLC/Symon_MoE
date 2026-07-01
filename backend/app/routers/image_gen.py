@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import subprocess
 import uuid
 from pathlib import Path
@@ -23,6 +24,8 @@ SD_CPP_BIN = Path(
 )
 OUTPUT_DIR = REPO_ROOT / "frontend" / "models" / "images"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+_SAFE_FILENAME = re.compile(r"^[A-Za-z0-9._-]+$")
 
 # In-memory job store for image generation jobs
 _JOBS: dict[str, dict] = {}
@@ -48,7 +51,16 @@ def _run_sd_job(job_id: str, params: dict) -> None:
     out_path = OUTPUT_DIR / f"{job_id}.png"
 
     converted_dir = REPO_ROOT / "frontend" / "models" / "converted"
-    model_path = converted_dir / params["model"]
+    model_filename = params["model"]
+    if not _SAFE_FILENAME.fullmatch(model_filename) or model_filename in {".", ".."}:
+        _JOBS[job_id]["status"] = "failed"
+        _JOBS[job_id]["error"] = "Invalid model filename"
+        return
+    model_path = (converted_dir / model_filename).resolve()
+    if not str(model_path).startswith(str(converted_dir.resolve())):
+        _JOBS[job_id]["status"] = "failed"
+        _JOBS[job_id]["error"] = "Invalid model path"
+        return
     if not model_path.exists():
         _JOBS[job_id]["status"] = "failed"
         _JOBS[job_id]["error"] = f"Model file not found: {params['model']}"
