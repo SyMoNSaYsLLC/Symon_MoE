@@ -258,7 +258,8 @@ async def tensor_chat(request: TensorChatRequest):
       repeat_penalty, num_predict, num_ctx).
     """
     raw_base_url = (request.base_url or DEFAULT_OLLAMA_BASE_URL).rstrip("/")
-    if not (raw_base_url.lower().startswith("http://") or raw_base_url.lower().startswith("https://")):
+    raw_base_url_lower = raw_base_url.lower()
+    if not (raw_base_url_lower.startswith("http://") or raw_base_url_lower.startswith("https://")):
         raise HTTPException(status_code=400, detail="base_url must use http:// or https://")
     base_url = raw_base_url
 

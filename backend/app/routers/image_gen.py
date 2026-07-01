@@ -52,12 +52,13 @@ def _run_sd_job(job_id: str, params: dict) -> None:
 
     converted_dir = REPO_ROOT / "frontend" / "models" / "converted"
     model_filename = params["model"]
-    if not _SAFE_FILENAME.fullmatch(model_filename) or model_filename in {".", ".."}:
+    if not _SAFE_FILENAME.fullmatch(model_filename):
         _JOBS[job_id]["status"] = "failed"
         _JOBS[job_id]["error"] = "Invalid model filename"
         return
+    converted_dir_resolved = converted_dir.resolve()
     model_path = (converted_dir / model_filename).resolve()
-    if not str(model_path).startswith(str(converted_dir.resolve())):
+    if not str(model_path).startswith(str(converted_dir_resolved) + os.sep):
         _JOBS[job_id]["status"] = "failed"
         _JOBS[job_id]["error"] = "Invalid model path"
         return
